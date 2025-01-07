@@ -1,0 +1,70 @@
+---
+title: "Data preparation from Survey Monkey"
+author: "Lynn Pallemaerts"
+date: "2025-01-07"
+output:
+  html_document: default
+---
+
+# Libraries
+
+```{r}
+library(devtools)
+library(data.table)
+library(tidyverse)
+devtools::install_github("mattroumaya/surveymonkey")
+```
+
+# Get connection with Survey monkey
+
+```{r}
+token <- "aH53VJ63H0NmzlwgO-fYiy734GJ8X.C5tM-dC.-cX4M9q0eVnMVrw9KlXL2jcU.LZFsovMAXVsCYagdNSs-U2fffungmT4EakRghxE4ZnMVMxzcPswEcOtuWY6YvgmFJ"
+```
+
+```{r}
+# Should be done only once
+# usethis::edit_r_profile(scope = "project")
+# usethis::edit_r_profile()
+# options(sm_oauth_token = token)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Get survey ID
+
+```{r}
+surv <- surveymonkey::browse_surveys(title = "Indentifying data sharing issues regarding camera trap data in Europe -- dummy version",
+                                     oauth_token = token)
+survID <- c(surv$id)
+```
+
+# Get the whole survey
+
+```{r}
+fullSurvey <- surveymonkey::fetch_survey_obj(survID,
+                                             oauth_token = token) # your survey's ID goes here
+```
+
+# Get only responses
+
+```{r}
+responses <- surveymonkey::parse_survey(fullSurvey,
+                                        oauth_token = token)
+responses <- responses %>%
+  surveymonkey::strip_html()
+```
