@@ -10,28 +10,60 @@ output:
 
 ```{r}
 library(devtools)
-library(data.table)
-library(tidyverse)
 devtools::install_github("mattroumaya/surveymonkey")
+library(tidyverse)
 ```
 
-# Get connection with Survey monkey
+# Connect with Survey monkey
 
 ```{r}
-token <- "aH53VJ63H0NmzlwgO-fYiy734GJ8X.C5tM-dC.-cX4M9q0eVnMVrw9KlXL2jcU.LZFsovMAXVsCYagdNSs-U2fffungmT4EakRghxE4ZnMVMxzcPswEcOtuWY6YvgmFJ"
+m5_survey <- surveymonkey::browse_surveys(title = "Indentifying data sharing issues regarding camera trap data in Europe -- dummy version",
+                                          oauth_token = sm_oauth_token)
+survey_ID <- c(m5_survey$id)
+
+# Get whole survey
+survey <- surveymonkey::fetch_survey_obj(survey_ID,
+                                         oauth_token = sm_oauth_token)
+survey_df <- surveymonkey::parse_survey(survey,
+                                        oauth_token = sm_oauth_token) %>%
+  surveymonkey::strip_html()
 ```
+
+# Get question list
 
 ```{r}
-# Should be done only once
-# usethis::edit_r_profile(scope = "project")
-# usethis::edit_r_profile()
-# options(sm_oauth_token = token)
+qs <- read_delim("./Input/question_list_dummy.csv",
+                 delim = ";")
 ```
 
+# Basic data exploration
 
+```{r}
+# Get number of total respondents
+length(unique(survey_df$respondent_id))
 
+# Get number of complete responses
+resp <- survey_df %>%
+  select(-survey_id, -collector_id, -date_created, -date_modified) %>%
+  filter(response_status == "completed") %>%
+  select(-response_status)
+length(unique(resp$respondent_id))
+```
 
+# Make subset for each question
 
+```{r}
+for (i in 1:nrow(qs)) {
+  name <- qs$code[i]
+  question <- qs$question[i]
+  assign(name, 
+         survey_df %>%
+           dplyr::select(respondent_id, contains(question)))
+}
+remove(i, name, question)
+```
+
+# Clean individual dataframes
 
 
 
