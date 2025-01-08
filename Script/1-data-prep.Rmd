@@ -80,9 +80,15 @@ remove(i, name, question)
 # Get survey ID
 
 ```{r}
-surv <- surveymonkey::browse_surveys(title = "Indentifying data sharing issues regarding camera trap data in Europe -- dummy version",
-                                     oauth_token = token)
-survID <- c(surv$id)
+Q1 <- q1 %>%
+  pivot_longer(!respondent_id, names_to = "long_answer", values_to = "response") %>%
+  filter(!is.na(response)) %>%
+  mutate(question = qs$question[qs$code == "q1"]) %>%
+  mutate(nchar = nchar(question)) %>%
+  mutate(long_answer = substring(long_answer, nchar + 4)) %>%
+  select(respondent_id, question, response) %>%
+  write_csv2("./Interim/dummy_question1.csv")
+remove(q1)
 ```
 
 # Get the whole survey
