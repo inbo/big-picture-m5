@@ -65,19 +65,7 @@ remove(i, name, question)
 
 # Clean individual dataframes
 
-
-
-
-
-
-
-
-
-
-
-
-
-# Get survey ID
+## Q1
 
 ```{r}
 Q1 <- q1 %>%
@@ -91,11 +79,15 @@ Q1 <- q1 %>%
 remove(q1)
 ```
 
-# Get the whole survey
+## Q2
 
 ```{r}
-fullSurvey <- surveymonkey::fetch_survey_obj(survID,
-                                             oauth_token = token) # your survey's ID goes here
+Q2 <- q2 %>%
+  mutate(question = qs$question[qs$code == "q2"]) %>%
+  rename(response = "What country is your primary affiliation located in?") %>%
+  select(respondent_id, question, response) %>%
+  write_csv2("./Interim/dummy_question2.csv")
+remove(q2)
 ```
 
 # Get only responses
