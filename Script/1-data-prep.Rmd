@@ -17,7 +17,7 @@ library(tidyverse)
 # Connect with Survey monkey
 
 ```{r}
-m5_survey <- surveymonkey::browse_surveys(title = "Indentifying data sharing issues regarding camera trap data in Europe -- dummy version",
+m5_survey <- surveymonkey::browse_surveys(title = "Identifying data sharing issues regarding camera trap data in Europe",
                                           oauth_token = sm_oauth_token)
 survey_ID <- c(m5_survey$id)
 
@@ -32,8 +32,9 @@ survey_df <- surveymonkey::parse_survey(survey,
 # Get question list
 
 ```{r}
-qs <- read_delim("./Input/question_list_dummy.csv",
-                 delim = ";")
+qs <- read_delim("./Input/question_list.csv",
+                 delim = ";") %>%
+  select(-"...4")
 ```
 
 # Basic data exploration
@@ -75,7 +76,7 @@ Q1 <- q1 %>%
   mutate(nchar = nchar(question)) %>%
   mutate(long_answer = substring(long_answer, nchar + 4)) %>%
   select(respondent_id, question, response) %>%
-  write_csv2("./Interim/dummy_question1.csv")
+  write_csv2("./Interim/question1.csv")
 remove(q1)
 ```
 
@@ -87,54 +88,67 @@ Q2 <- q2 %>%
   mutate(question = qs$question[qs$code == "q2"]) %>%
   rename(response = qs$question[qs$code == "q2"]) %>%
   select(respondent_id, question, response) %>%
-  write_csv2("./Interim/dummy_question2.csv")
+  write_csv2("./Interim/question2.csv")
 remove(q2)
 ```
 
 ## Q3
 
 ```{r}
+# Q3 <- q3 %>%
+#   mutate(question = qs$question[qs$code == "q3"]) %>%
+#   rename(response = qs$question[qs$code == "q3"]) %>%
+#   select(respondent_id, question, response) %>%
+#   write_csv2("./Interim/dummy_question3.csv")
+# remove(q3)
+
+# This question was removed between dummy and def version
+# Dummy Q4 is now def Q3
+
+# WATCH OUT FO OTHER PLEASE SPECIFY
 Q3 <- q3 %>%
   mutate(question = qs$question[qs$code == "q3"]) %>%
   rename(response = qs$question[qs$code == "q3"]) %>%
   select(respondent_id, question, response) %>%
-  write_csv2("./Interim/dummy_question3.csv")
+  write_csv2("./Interim/question3.csv")
 remove(q3)
 ```
 
 ## Q4
 
 ```{r}
-# WATCH OUT FO OTHER PLEASE SPECIFY
 Q4 <- q4 %>%
   mutate(question = qs$question[qs$code == "q4"]) %>%
   rename(response = qs$question[qs$code == "q4"]) %>%
+  filter(!is.na(response)) %>% # For the respondents that did not mark administration in Q3
   select(respondent_id, question, response) %>%
-  write_csv2("./Interim/dummy_question4.csv")
+  write_csv2("./Interim/question4.csv")
 remove(q4)
 ```
 
 ## Q5
 
 ```{r}
+# WATCH OUT FO OTHER PLEASE SPECIFY
 Q5 <- q5 %>%
   mutate(question = qs$question[qs$code == "q5"]) %>%
   rename(response = qs$question[qs$code == "q5"]) %>%
-  filter(!is.na(response)) %>% # For the repsondents that did not mark administration in Q4
   select(respondent_id, question, response) %>%
-  write_csv2("./Interim/dummy_question5.csv")
+  write_csv2("./Interim/question5.csv")
 remove(q5)
 ```
 
 ## Q6
 
 ```{r}
-# WATCH OUT FO OTHER PLEASE SPECIFY
 Q6 <- q6 %>%
+  pivot_longer(!respondent_id, names_to = "long_answer", values_to = "response") %>%
   mutate(question = qs$question[qs$code == "q6"]) %>%
-  rename(response = qs$question[qs$code == "q6"]) %>%
-  select(respondent_id, question, response) %>%
-  write_csv2("./Interim/dummy_question6.csv")
+  mutate(nchar = nchar(question)) %>%
+  mutate(long_answer = substring(long_answer, nchar + 4)) %>%
+  rename(topic = long_answer) %>%
+  select(respondent_id, question, topic, response) %>%
+  write_csv2("./Interim/question6.csv")
 remove(q6)
 ```
 
@@ -142,13 +156,11 @@ remove(q6)
 
 ```{r}
 Q7 <- q7 %>%
-  pivot_longer(!respondent_id, names_to = "long_answer", values_to = "response") %>%
   mutate(question = qs$question[qs$code == "q7"]) %>%
-  mutate(nchar = nchar(question)) %>%
-  mutate(long_answer = substring(long_answer, nchar + 4)) %>%
-  rename(topic = long_answer) %>%
-  select(respondent_id, question, topic, response) %>%
-  write_csv2("./Interim/dummy_question7.csv")
+  rename(response = qs$question[qs$code == "q7"]) %>%
+  filter(!is.na(response)) %>% # for those who didn't fill this in
+  select(respondent_id, question, response) %>%
+  write_csv2("./Interim/question7.csv")
 remove(q7)
 ```
 
@@ -156,11 +168,13 @@ remove(q7)
 
 ```{r}
 Q8 <- q8 %>%
+  pivot_longer(!respondent_id, names_to = "long_answer", values_to = "response") %>%
   mutate(question = qs$question[qs$code == "q8"]) %>%
-  rename(response = qs$question[qs$code == "q8"]) %>%
-  filter(!is.na(response))%>% # for those who didn't fill this in
-  select(respondent_id, question, response) %>%
-  write_csv2("./Interim/dummy_question8.csv")
+  mutate(nchar = nchar(question)) %>%
+  mutate(long_answer = substring(long_answer, nchar + 4)) %>%
+  rename(charachteristic = long_answer) %>%
+  select(respondent_id, question, charachteristic, response) %>%
+  write_csv2("./Interim/question8.csv")
 remove(q8)
 ```
 
@@ -174,7 +188,7 @@ Q9 <- q9 %>%
   mutate(long_answer = substring(long_answer, nchar + 4)) %>%
   rename(charachteristic = long_answer) %>%
   select(respondent_id, question, charachteristic, response) %>%
-  write_csv2("./Interim/dummy_question9.csv")
+  write_csv2("./Interim/question9.csv")
 remove(q9)
 ```
 
@@ -182,13 +196,11 @@ remove(q9)
 
 ```{r}
 Q10 <- q10 %>%
-  pivot_longer(!respondent_id, names_to = "long_answer", values_to = "response") %>%
   mutate(question = qs$question[qs$code == "q10"]) %>%
-  mutate(nchar = nchar(question)) %>%
-  mutate(long_answer = substring(long_answer, nchar + 4)) %>%
-  rename(charachteristic = long_answer) %>%
-  select(respondent_id, question, charachteristic, response) %>%
-  write_csv2("./Interim/dummy_question10.csv")
+  rename(response = qs$question[qs$code == "q10"]) %>%
+  filter(!is.na(response))%>% # for those who didn't fill this in
+  select(respondent_id, question, response) %>%
+  write_csv2("./Interim/question10.csv")
 remove(q10)
 ```
 
@@ -200,7 +212,7 @@ Q11 <- q11 %>%
   rename(response = qs$question[qs$code == "q11"]) %>%
   filter(!is.na(response))%>% # for those who didn't fill this in
   select(respondent_id, question, response) %>%
-  write_csv2("./Interim/dummy_question11.csv")
+  write_csv2("./Interim/question11.csv")
 remove(q11)
 ```
 
@@ -208,11 +220,13 @@ remove(q11)
 
 ```{r}
 Q12 <- q12 %>%
+  pivot_longer(!respondent_id, names_to = "long_answer", values_to = "response") %>%
   mutate(question = qs$question[qs$code == "q12"]) %>%
-  rename(response = qs$question[qs$code == "q12"]) %>%
-  filter(!is.na(response))%>% # for those who didn't fill this in
-  select(respondent_id, question, response) %>%
-  write_csv2("./Interim/dummy_question12.csv")
+  mutate(nchar = nchar(question)) %>%
+  mutate(long_answer = substring(long_answer, nchar + 4)) %>%
+  rename(charachteristic = long_answer) %>%
+  select(respondent_id, question, charachteristic, response) %>%
+  write_csv2("./Interim/question12.csv")
 remove(q12)
 ```
 
@@ -226,7 +240,7 @@ Q13 <- q13 %>%
   mutate(long_answer = substring(long_answer, nchar + 4)) %>%
   rename(charachteristic = long_answer) %>%
   select(respondent_id, question, charachteristic, response) %>%
-  write_csv2("./Interim/dummy_question13.csv")
+  write_csv2("./Interim/question13.csv")
 remove(q13)
 ```
 
@@ -240,7 +254,7 @@ Q14 <- q14 %>%
   mutate(long_answer = substring(long_answer, nchar + 4)) %>%
   rename(charachteristic = long_answer) %>%
   select(respondent_id, question, charachteristic, response) %>%
-  write_csv2("./Interim/dummy_question14.csv")
+  write_csv2("./Interim/question14.csv")
 remove(q14)
 ```
 
@@ -254,7 +268,7 @@ Q15 <- q15 %>%
   mutate(long_answer = substring(long_answer, nchar + 4)) %>%
   rename(charachteristic = long_answer) %>%
   select(respondent_id, question, charachteristic, response) %>%
-  write_csv2("./Interim/dummy_question15.csv")
+  write_csv2("./Interim/question15.csv")
 remove(q15)
 ```
 
@@ -268,7 +282,7 @@ Q16 <- q16 %>%
   mutate(long_answer = substring(long_answer, nchar + 4)) %>%
   rename(charachteristic = long_answer) %>%
   select(respondent_id, question, charachteristic, response) %>%
-  write_csv2("./Interim/dummy_question16.csv")
+  write_csv2("./Interim/question16.csv")
 remove(q16)
 ```
 
@@ -282,7 +296,7 @@ Q17 <- q17 %>%
   mutate(long_answer = substring(long_answer, nchar + 4)) %>%
   rename(charachteristic = long_answer) %>%
   select(respondent_id, question, charachteristic, response) %>%
-  write_csv2("./Interim/dummy_question17.csv")
+  write_csv2("./Interim/question17.csv")
 remove(q17)
 ```
 
@@ -296,7 +310,7 @@ Q18 <- q18 %>%
   mutate(long_answer = substring(long_answer, nchar + 4)) %>%
   rename(charachteristic = long_answer) %>%
   select(respondent_id, question, charachteristic, response) %>%
-  write_csv2("./Interim/dummy_question18.csv")
+  write_csv2("./Interim/question18.csv")
 remove(q18)
 ```
 
@@ -310,7 +324,7 @@ Q19 <- q19 %>%
   mutate(long_answer = substring(long_answer, nchar + 4)) %>%
   rename(charachteristic = long_answer) %>%
   select(respondent_id, question, charachteristic, response) %>%
-  write_csv2("./Interim/dummy_question19.csv")
+  write_csv2("./Interim/question19.csv")
 remove(q19)
 ```
 
@@ -324,7 +338,7 @@ Q20 <- q20 %>%
   mutate(long_answer = substring(long_answer, nchar + 4)) %>%
   rename(charachteristic = long_answer) %>%
   select(respondent_id, question, charachteristic, response) %>%
-  write_csv2("./Interim/dummy_question20.csv")
+  write_csv2("./Interim/question20.csv")
 remove(q20)
 ```
 
@@ -338,7 +352,7 @@ Q21 <- q21 %>%
   mutate(long_answer = substring(long_answer, nchar + 4)) %>%
   rename(charachteristic = long_answer) %>%
   select(respondent_id, question, charachteristic, response) %>%
-  write_csv2("./Interim/dummy_question21.csv")
+  write_csv2("./Interim/question21.csv")
 remove(q21)
 ```
 
@@ -346,13 +360,10 @@ remove(q21)
 
 ```{r}
 Q22 <- q22 %>%
-  pivot_longer(!respondent_id, names_to = "long_answer", values_to = "response") %>%
   mutate(question = qs$question[qs$code == "q22"]) %>%
-  mutate(nchar = nchar(question)) %>%
-  mutate(long_answer = substring(long_answer, nchar + 4)) %>%
-  rename(charachteristic = long_answer) %>%
-  select(respondent_id, question, charachteristic, response) %>%
-  write_csv2("./Interim/dummy_question22.csv")
+  rename(response = qs$question[qs$code == "q22"]) %>%
+  select(respondent_id, question, response) %>%
+  write_csv2("./Interim/question22.csv")
 remove(q22)
 ```
 
@@ -363,7 +374,7 @@ Q23 <- q23 %>%
   mutate(question = qs$question[qs$code == "q23"]) %>%
   rename(response = qs$question[qs$code == "q23"]) %>%
   select(respondent_id, question, response) %>%
-  write_csv2("./Interim/dummy_question23.csv")
+  write_csv2("./Interim/question23.csv")
 remove(q23)
 ```
 
@@ -374,34 +385,22 @@ Q24 <- q24 %>%
   mutate(question = qs$question[qs$code == "q24"]) %>%
   rename(response = qs$question[qs$code == "q24"]) %>%
   select(respondent_id, question, response) %>%
-  write_csv2("./Interim/dummy_question24.csv")
+  write_csv2("./Interim/question24.csv")
 remove(q24)
 ```
 
-## Q25
+## Q25-28
 
 ```{r}
-Q25 <- q25 %>%
-  mutate(question = qs$question[qs$code == "q25"]) %>%
-  rename(response = qs$question[qs$code == "q25"]) %>%
-  select(respondent_id, question, response) %>%
-  write_csv2("./Interim/dummy_question25.csv")
-remove(q25)
+Q25678 <- q25 %>%
+  left_join(q26, by = "respondent_id") %>%
+    left_join(q27, by = "respondent_id") %>%
+  left_join(q28, by = "respondent_id") %>%
+  rename(gender = qs$question[qs$code == "q25"],
+         age = qs$question[qs$code == "q26"],
+         degree = qs$question[qs$code == "q27"],
+         employment = qs$question[qs$code == "q28"]) %>%
+  write_csv2("./Interim/question25678.csv")
+remove(q25, q26, q27, q28)
 ```
 
-## Q26-29
-
-```{r}
-Q26789 <- q26 %>%
-  left_join(q27, by = "respondent_id") %>%
-    left_join(q28, by = "respondent_id") %>%
-  left_join(q29, by = "respondent_id") %>%
-  rename(gender = qs$question[qs$code == "q26"],
-         age = qs$question[qs$code == "q27"],
-         degree = qs$question[qs$code == "q28"],
-         employment = qs$question[qs$code == "q29"]) %>%
-  write_csv2("./Interim/dummy_question26789.csv")
-remove(q26, q27, q28, q29)
-```
-
-89
