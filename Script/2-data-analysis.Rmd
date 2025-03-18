@@ -1,0 +1,401 @@
+---
+title: "Data analysis from Survey Monkey"
+output: html_document
+date: "2025-03-18"
+---
+
+# Libraries
+
+```{r}
+library(fistools)
+library(ggforce)
+library(tidyverse)
+```
+
+# Question 6
+
+```{r}
+q6 <- read_delim("./Interim/question6.csv", 
+                 delim = ";", 
+                 escape_double = FALSE, 
+                 col_types = cols(respondent_id = col_double()), 
+                 trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q6_pci <- q6 %>%
+  group_by(topic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(topic)), by = 1))
+
+q6_pci %>%
+  ggplot() + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              fill = "lightgrey",
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q6_pci$y),
+                     labels = unique(q6_pci$topic)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q6$score),
+                     labels = unique(q6$response)) +
+  labs(title = unique(q6$question),
+       subtitle = paste0("n = ", q6_pci$n)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5))
+ggsave("./Output/q6_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 8
+
+```{r}
+q8 <- read_delim("./Interim/question8.csv", 
+    delim = ";", 
+    escape_double = FALSE, 
+    trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q8_pci <- q8 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+
+q8_pci %>%
+  ggplot() + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              fill = "lightgrey",
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q8_pci$y),
+                     labels = unique(q8_pci$charachteristic)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q8$score),
+                     labels = unique(q8$response)) +
+  labs(title = unique(q8$question),
+       subtitle = paste0("n = ", q8_pci$n)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5))
+ggsave("./Output/q8_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 9
+
+```{r}
+q9 <- read_delim("./Interim/question9.csv", 
+    delim = ";", 
+    escape_double = FALSE, 
+    trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q9_pci <- q9 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+
+q9_pci %>%
+  ggplot() + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              fill = "lightgrey",
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q9_pci$y),
+                     labels = unique(q9_pci$charachteristic)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q9$score),
+                     labels = unique(q9$response)) +
+  labs(title = unique(q9$question),
+       subtitle = paste0("n = ", q9_pci$n)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5))
+ggsave("./Output/q9_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 12
+
+```{r}
+q12 <- read_delim("./Interim/question12.csv", 
+    delim = ";", 
+    escape_double = FALSE, 
+    trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q12_pci <- q12 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+
+q12_pci %>%
+  ggplot() + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              fill = "lightgrey",
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q12_pci$y),
+                     labels = unique(q12_pci$charachteristic)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q12$score),
+                     labels = unique(q12$response)) +
+  labs(title = unique(q12$question),
+       subtitle = paste0("n = ", q12_pci$n)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5))
+ggsave("./Output/q12_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 13
+
+```{r}
+q13 <- read_delim("./Interim/question13.csv", 
+    delim = ";", 
+    escape_double = FALSE, 
+    trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q13_pci <- q13 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+
+q13_pci %>%
+  ggplot() + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              fill = "lightgrey",
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q13_pci$y),
+                     labels = unique(q13_pci$charachteristic)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q13$score),
+                     labels = unique(q13$response)) +
+  labs(title = unique(q13$question),
+       subtitle = paste0("n = ", q13_pci$n)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5))
+ggsave("./Output/q13_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 14
+
+```{r}
+q14 <- read_delim("./Interim/question14.csv", 
+    delim = ";", 
+    escape_double = FALSE, 
+    trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q14_pci <- q14 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+
+q14_pci %>%
+  ggplot() + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              fill = "lightgrey",
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q14_pci$y),
+                     labels = unique(q14_pci$charachteristic)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q14$score),
+                     labels = unique(q14$response)) +
+  labs(title = unique(q14$question),
+       subtitle = paste0("n = ", q14_pci$n)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5))
+ggsave("./Output/q14_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 15
+
+```{r}
+q15 <- read_delim("./Interim/question15.csv", 
+    delim = ";", 
+    escape_double = FALSE, 
+    trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q15_pci <- q15 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+
+q15_pci %>%
+  ggplot() + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              fill = "lightgrey",
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q15_pci$y),
+                     labels = unique(q15_pci$charachteristic)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q15$score),
+                     labels = unique(q15$response)) +
+  labs(title = unique(q15$question),
+       subtitle = paste0("n = ", q15_pci$n)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5))
+ggsave("./Output/q15_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 16
+
+```{r}
+q16 <- read_delim("./Interim/question16.csv", 
+    delim = ";", 
+    escape_double = FALSE, 
+    trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) #%>%
+  filter(!is.na(score))
+
+q16_pci <- q16 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+
+q16_pci %>%
+  ggplot() + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              fill = "lightgrey",
+              alpha = 0.75) +
+    geom_point(aes(y = y,
+                  x = meanAnswer)) +
+
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q16_pci$y),
+                     labels = unique(q16_pci$charachteristic)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q16$score),
+                     labels = unique(q16$response)) +
+  labs(title = unique(q16$question),
+       subtitle = paste0("n = ", q16_pci$n)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5))
+ggsave("./Output/q16_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
