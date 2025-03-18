@@ -19,7 +19,7 @@ library(tidyverse)
 ```{r}
 m5_survey <- surveymonkey::browse_surveys(title = "Identifying data sharing issues regarding camera trap data in Europe",
                                           oauth_token = sm_oauth_token)
-survey_ID <- c(m5_survey$id)
+survey_ID <- c(m5_survey$id[1])
 
 # Get whole survey
 survey <- surveymonkey::fetch_survey_obj(survey_ID,
