@@ -536,17 +536,6 @@ ggsave("./Output/q14_pci.png",
        units = c("cm"))
 ```
 
-#Q12-13 toegther
-
-```{r}
-pl12 + pl13
-ggsave("./Output/q1213.png",
-       dpi = 300,
-       width = 30,
-       height = 20,
-       units = c("cm"))
-```
-
 # Question 15: Would the following safeguards positively influence your willingness to share data, for the species mentioned in Q11 and Q12?
 
 ```{r}
@@ -847,17 +836,6 @@ pl19 <- q19_pci %>%
        y = "")
 pl19
 ggsave("./Output/q19_pci.png",
-       dpi = 300,
-       width = 30,
-       height = 20,
-       units = c("cm"))
-```
-
-# Q18-19 together
-
-```{r}
-pl18 + pl19
-ggsave("./Output/q1819.png",
        dpi = 300,
        width = 30,
        height = 20,
