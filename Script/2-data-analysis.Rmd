@@ -941,3 +941,73 @@ ggsave("./Output/q21_pci.png",
        units = c("cm"))
 ```
 
+# Question 22 + 23
+
+```{r}
+q22 <- read_delim("Interim/question22.csv", 
+                  delim = ";",
+                  escape_double = FALSE,
+                  trim_ws = TRUE) %>%
+  mutate(question = "Making original images publicly available") %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q23 <- read_delim("Interim/question23.csv", 
+                  delim = ";", 
+                  escape_double = FALSE, 
+                  trim_ws = TRUE) %>%
+  mutate(question = "Making species records publicly available (not images)") %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q223 <- bind_rows(q22, q23)
+remove(q22, q23)
+
+q223_pci <- q223 %>%
+  group_by(question) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(question)), by = 1))
+
+q223_pci %>%
+  ggplot(aes(fill = question,
+             colour = question)) + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q223_pci$y),
+                     labels = unique(q223_pci$question)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q223$score),
+                     labels = unique(q223$response)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5)) +
+  guides(fill = "none", 
+         color = "none") +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q223$respondent_id[!is.na(q223$score)]))),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5) +
+  labs(x = "",
+       y = "")
+ggsave("./Output/q223_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
