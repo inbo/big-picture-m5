@@ -383,7 +383,8 @@ pl12 <- q12_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q12_pci$y),
-                     labels = unique(q12_pci$charachteristic)) +
+                     labels = unique(q12_pci$charachteristic),
+                     limits = c(0.8, 7.5)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q12$score),
                      labels = unique(q12$response)) +
@@ -448,7 +449,8 @@ pl13 <- q13_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q13_pci$ord),
-                     labels = unique(q13_pci$charachteristic)) +
+                     labels = unique(q13_pci$charachteristic),
+                     limits = c(0.9, 5.5)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q13$score),
                      labels = unique(q13$response)) +
@@ -745,7 +747,8 @@ pl18 <- q18_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q18_pci$y),
-                     labels = unique(q18_pci$charachteristic)) +
+                     labels = unique(q18_pci$charachteristic),
+                     limits = c(0.8, 7.5)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q18$score),
                      labels = unique(q18$response)) +
@@ -813,7 +816,8 @@ pl19 <- q19_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q19_pci$ord),
-                     labels = unique(q19_pci$charachteristic)) +
+                     labels = unique(q19_pci$charachteristic),
+                     limits = c(0.9, 5.5)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q19$score),
                      labels = unique(q19$response)) +
@@ -864,7 +868,6 @@ ggsave("./Output/q1218.png",
        width = 30,
        height = 20,
        units = c("cm"))
-
 ```
 
 # Question 20: How valuable do you think data from unstructured citizen science initiatives/projects (e.g. garden projects, opportunistic camera trapping) are for the following purposes?
@@ -886,7 +889,7 @@ q20_pci <- q20 %>%
   ungroup() %>%
   mutate(y = seq(1, length(unique(charachteristic)), by = 1))
 
-q20_pci %>%
+pl20 <- q20_pci %>%
   ggplot(aes(fill = charachteristic,
              colour = charachteristic)) + 
   geom_vline(xintercept = 0,
@@ -900,7 +903,8 @@ q20_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q20_pci$y),
-                     labels = unique(q20_pci$charachteristic)) +
+                     labels = unique(q20_pci$charachteristic),
+                     limits = c(0.5, 7.5)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q20$score),
                      labels = unique(q20$response)) +
@@ -921,6 +925,7 @@ q20_pci %>%
            size = 2.5) +
   labs(x = "",
        y = "")
+pl20
 ggsave("./Output/q20_pci.png",
        dpi = 300,
        width = 30,
@@ -947,7 +952,7 @@ q21_pci <- q21 %>%
   ungroup() %>%
   mutate(y = seq(1, length(unique(charachteristic)), by = 1))
 
-q21_pci %>%
+pl21 <- q21_pci %>%
   ggplot(aes(fill = charachteristic,
              colour = charachteristic)) + 
   geom_vline(xintercept = 0,
@@ -958,7 +963,8 @@ q21_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q21_pci$y),
-                     labels = unique(q21_pci$charachteristic)) +
+                     labels = unique(q21_pci$charachteristic),
+                     limits = c(0.5, 7.5)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q21$score),
                      labels = unique(q21$response)) +
@@ -979,12 +985,26 @@ q21_pci %>%
            size = 2.5) +
   labs(x = "",
        y = "")
+pl21
 ggsave("./Output/q21_pci.png",
        dpi = 300,
        width = 30,
        height = 20,
        units = c("cm"))
 ```
+
+# Q20-21 together
+
+```{r}
+pl20 + (pl21 +
+          theme(axis.text.y = element_blank()))
+ggsave("./Output/q2021.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
 
 # Question 22 + 23
 
