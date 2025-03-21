@@ -9,6 +9,7 @@ date: "2025-03-18"
 ```{r}
 library(fistools)
 library(ggforce)
+library(patchwork)
 library(tidyverse)
 
 conflicted::conflicts_prefer(dplyr::filter)
@@ -368,9 +369,10 @@ q12_pci <- q12 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
+  mutate(charachteristic = fct_reorder(charachteristic, y))
 
-q12_pci %>%
+pl12 <- q12_pci %>%
   ggplot(aes(fill = charachteristic,
              colour = charachteristic)) + 
   geom_vline(xintercept = 0,
@@ -402,6 +404,7 @@ q12_pci %>%
            size = 2.5) +
   labs(x = "",
        y = "")
+pl12
 ggsave("./Output/q12_pci.png",
        dpi = 300,
        width = 30,
@@ -426,19 +429,25 @@ q13_pci <- q13 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
+  mutate(ord = case_when(str_detect(charachteristic, "Exact") ~ 1,
+                         str_detect(charachteristic, "Daily") ~ 2,
+                         str_detect(charachteristic, "Weekly") ~ 3,
+                         str_detect(charachteristic, "Monthly") ~ 4,
+                         str_detect(charachteristic, "Annual") ~ 5),
+         charachteristic = fct_reorder(charachteristic, ord))
 
-q13_pci %>%
+pl13 <- q13_pci %>%
   ggplot(aes(fill = charachteristic,
              colour = charachteristic)) + 
   geom_vline(xintercept = 0,
              linetype = 2) +
-  geom_circle(aes(y0 = y,
+  geom_circle(aes(y0 = ord,
                   x0 = meanAnswer,
                   r = pci2),
               alpha = 0.75) +
   coord_fixed() +
-  scale_y_continuous(breaks = unique(q13_pci$y),
+  scale_y_continuous(breaks = unique(q13_pci$ord),
                      labels = unique(q13_pci$charachteristic)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q13$score),
@@ -460,6 +469,7 @@ q13_pci %>%
            size = 2.5) +
   labs(x = "",
        y = "")
+pl13
 ggsave("./Output/q13_pci.png",
        dpi = 300,
        width = 30,
@@ -486,7 +496,7 @@ q14_pci <- q14 %>%
   ungroup() %>%
   mutate(y = seq(1, length(unique(charachteristic)), by = 1))
 
-q14_pci %>%
+pl14 <- q14_pci %>%
   ggplot(aes(fill = charachteristic,
              colour = charachteristic)) + 
   geom_vline(xintercept = 0,
@@ -518,7 +528,19 @@ q14_pci %>%
            size = 2.5) +
   labs(x = "",
        y = "")
+pl14
 ggsave("./Output/q14_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+#Q12-13 toegther
+
+```{r}
+pl12 + pl13
+ggsave("./Output/q1213.png",
        dpi = 300,
        width = 30,
        height = 20,
@@ -720,9 +742,10 @@ q18_pci <- q18 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
+  mutate(charachteristic = fct_reorder(charachteristic, y))
 
-q18_pci %>%
+pl18 <- q18_pci %>%
   ggplot(aes(fill = charachteristic,
              colour = charachteristic)) + 
   geom_vline(xintercept = 0,
@@ -754,6 +777,7 @@ q18_pci %>%
            size = 2.5) +
   labs(x = "",
        y = "")
+pl18
 ggsave("./Output/q18_pci.png",
        dpi = 300,
        width = 30,
@@ -778,22 +802,28 @@ q19_pci <- q19 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
+  mutate(ord = case_when(str_detect(charachteristic, "Exact") ~ 1,
+                         str_detect(charachteristic, "Daily") ~ 2,
+                         str_detect(charachteristic, "Weekly") ~ 3,
+                         str_detect(charachteristic, "Monthly") ~ 4,
+                         str_detect(charachteristic, "Yearly") ~ 5),
+         charachteristic = fct_reorder(charachteristic, ord))
 
-q19_pci %>%
+pl19 <- q19_pci %>%
   ggplot(aes(fill = charachteristic,
              colour = charachteristic)) + 
   geom_vline(xintercept = 0,
              linetype = 2) +
-  geom_point(aes(y = y,
+  geom_point(aes(y = ord,
                  x = meanAnswer),
              alpha = 0.5) +
-  geom_circle(aes(y0 = y,
+  geom_circle(aes(y0 = ord,
                   x0 = meanAnswer,
                   r = pci2),
               alpha = 0.75) +
   coord_fixed() +
-  scale_y_continuous(breaks = unique(q19_pci$y),
+  scale_y_continuous(breaks = unique(q19_pci$ord),
                      labels = unique(q19_pci$charachteristic)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q19$score),
@@ -815,11 +845,48 @@ q19_pci %>%
            size = 2.5) +
   labs(x = "",
        y = "")
+pl19
 ggsave("./Output/q19_pci.png",
        dpi = 300,
        width = 30,
        height = 20,
        units = c("cm"))
+```
+
+# Q18-19 together
+
+```{r}
+pl18 + pl19
+ggsave("./Output/q1819.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Q13-19 together
+
+```{r}
+pl13 + (pl19 +
+          theme(axis.text.y = element_blank()))
+ggsave("./Output/q1319.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Q12-18 together
+
+```{r}
+pl12 + (pl18 +
+          theme(axis.text.y = element_blank()))
+ggsave("./Output/q1218.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+
 ```
 
 # Question 20: How valuable do you think data from unstructured citizen science initiatives/projects (e.g. garden projects, opportunistic camera trapping) are for the following purposes?
