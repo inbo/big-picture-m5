@@ -1,0 +1,1078 @@
+---
+title: "Data analysis from Survey Monkey"
+output: html_document
+date: "2025-03-18"
+---
+
+# Libraries
+
+```{r}
+library(fistools)
+library(ggforce)
+library(patchwork)
+library(tidyverse)
+
+conflicted::conflicts_prefer(dplyr::filter)
+conflicted::conflicts_prefer(dplyr::summarise)
+conflicted::conflicts_prefer(dplyr::mutate)
+```
+
+# Question 1: What country/countries are your activities based in? Multiple answers are possible.
+
+```{r}
+q1 <- read_delim("./Interim/question1.csv", 
+                 delim = ";",
+                 escape_double = FALSE, 
+                 trim_ws = TRUE)
+```
+
+## Cleaning
+```{r}
+subset(q1, response == "South Africa")
+
+respondents_to_scrap <- c("118788625159")
+```
+
+```{r}
+q1 %>%
+  ggplot() +
+  geom_bar(aes(x = fct_infreq(response))) +
+  labs(x = "Country of activities",
+       y = "Number of responses") +
+  theme(axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5)) +
+  scale_y_continuous(limits = c(0, 15)) +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q1$respondent_id)),
+                          " | m = ",
+                          nrow(q1)),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5)
+ggsave("./Output/q1.png",
+       dpi = 300,
+       width = 15,
+       height = 10,
+       units = c("cm"))
+```
+
+# Question 2: What country is your primary affiliation located in?
+
+```{r}
+q2 <- read_delim("./Interim/question2.csv", 
+                 delim = ";",
+                 escape_double = FALSE, 
+                 trim_ws = TRUE)
+```
+```{r}
+subset(q2, respondent_id %in% respondents_to_scrap)
+```
+
+```{r}
+q2 %>%
+  filter(!is.na(response)) %>%
+  ggplot() +
+  geom_bar(aes(x = fct_infreq(response))) +
+  labs(x = "Country of primary affiliation",
+       y = "Number of responses") +
+  theme(axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5)) +
+  scale_y_continuous(limits = c(0, 15)) +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q2$respondent_id[!is.na(q2$response)]))),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5)
+ggsave("./Output/q2.png",
+       dpi = 300,
+       width = 15,
+       height = 10,
+       units = c("cm"))
+```
+
+
+# Question 3: How would you classify your primary affiliation?
+
+```{r}
+q3 <- read_delim("./Interim/question3.csv", 
+                 delim = ";",
+                 escape_double = FALSE, 
+                 trim_ws = TRUE)
+```
+
+```{r}
+subset(q3, respondent_id %in% respondents_to_scrap)
+```
+
+```{r}
+q3 %>%
+  filter(!is.na(response)) %>%
+  mutate(response = case_when(str_detect(response, "Academic") ~ "Academic",
+                              str_detect(response, "Scientific") ~ "Scientific",
+                              TRUE ~ response)) %>%
+  ggplot() +
+  geom_bar(aes(x = fct_infreq(response))) +
+  labs(x = "Type of primary affiliation",
+       y = "Number of responses") +
+  scale_y_continuous(limits = c(0, 40)) +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q3$respondent_id[!is.na(q3$response)]))),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5)
+ggsave("./Output/q3.png",
+       dpi = 300,
+       width = 18,
+       height = 12,
+       units = c("cm"))
+```
+
+# Question 5 : What role do you play in camera trapping-related research?
+
+```{r}
+q5 <- read_delim("./Interim/question5.csv", 
+                 delim = ";",
+                 escape_double = FALSE, 
+                 trim_ws = TRUE)
+```
+
+```{r}
+subset(q5, respondent_id %in% respondents_to_scrap)
+```
+
+```{r}
+q5 %>%
+  filter(!is.na(response)) %>%
+  mutate(response = case_when(str_detect(response, "user") ~ "User",
+                              str_detect(response, "collector") ~ "Collector",
+                              TRUE ~ response)) %>%
+  ggplot() +
+  geom_bar(aes(x = fct_infreq(response))) +
+  labs(x = "",
+       y = "Number of responses") +
+  scale_y_continuous(limits = c(0, 50)) +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q5$respondent_id[!is.na(q5$response)]))),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5)
+ggsave("./Output/q5.png",
+       dpi = 300,
+       width = 18,
+       height = 12,
+       units = c("cm"))
+```
+
+# Question 6: What are your camera trapping-related research questions?
+
+```{r}
+q6 <- read_delim("./Interim/question6.csv", 
+                 delim = ";", 
+                 escape_double = FALSE, 
+                 col_types = cols(respondent_id = col_double()), 
+                 trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q6_pci <- q6 %>%
+  group_by(topic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(topic)), by = 1))
+
+q6_pci %>%
+  ggplot(aes(fill = topic,
+             colour = topic)) + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q6_pci$y),
+                     labels = unique(q6_pci$topic)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q6$score),
+                     labels = unique(q6$response)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5)) +
+  guides(fill = "none", 
+         color = "none") +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q6$respondent_id[!is.na(q6$response)]))),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5) +
+  labs(x = "",
+       y = "")
+ggsave("./Output/q6_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 8: How important do you rate the following characteristics of potential camera trap data management tools?
+
+```{r}
+q8 <- read_delim("./Interim/question8.csv", 
+                 delim = ";", 
+                 escape_double = FALSE, 
+                 trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q8_pci <- q8 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+
+q8_pci %>%
+  ggplot(aes(fill = charachteristic,
+             colour = charachteristic)) + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q8_pci$y),
+                     labels = unique(q8_pci$charachteristic)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q8$score),
+                     labels = unique(q8$response)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5)) +
+  labs(x = "",
+       y = "") +
+  guides(fill = "none", 
+         color = "none") +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q8$respondent_id[!is.na(q8$response)]))),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5)
+ggsave("./Output/q8_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 9: How desirable do you find the inclusion of the following features into data management tools?
+
+```{r}
+q9 <- read_delim("./Interim/question9.csv", 
+                 delim = ";", 
+                 escape_double = FALSE, 
+                 trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q9_pci <- q9 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+
+q9_pci %>%
+  ggplot(aes(fill = charachteristic,
+             colour = charachteristic)) + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q9_pci$y),
+                     labels = unique(q9_pci$charachteristic)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q9$score),
+                     labels = unique(q9$response)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5)) +
+  guides(fill = "none", 
+         color = "none") +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q9$respondent_id[!is.na(q9$response)]))),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5) +
+  labs(x = "",
+       y = "")
+ggsave("./Output/q9_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 12: For the study species your are willing to share data about, at what geographical resolution are you willing to share your data?
+
+```{r}
+q12 <- read_delim("./Interim/question12.csv", 
+                  delim = ";", 
+                  escape_double = FALSE, 
+                  trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q12_pci <- q12 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
+  mutate(charachteristic = fct_reorder(charachteristic, y))
+
+pl12 <- q12_pci %>%
+  ggplot(aes(fill = charachteristic,
+             colour = charachteristic)) + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q12_pci$y),
+                     labels = unique(q12_pci$charachteristic),
+                     limits = c(0.8, 7.5)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q12$score),
+                     labels = unique(q12$response)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5)) +
+  guides(fill = "none", 
+         color = "none") +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q12$respondent_id[!is.na(q12$response)]))),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5) +
+  labs(x = "",
+       y = "")
+pl12
+ggsave("./Output/q12_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 13: For the study species your are willing to share data about, at what temporal resolution are you willing to share your data?
+
+```{r}
+q13 <- read_delim("./Interim/question13.csv", 
+                  delim = ";", 
+                  escape_double = FALSE, 
+                  trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q13_pci <- q13 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
+  mutate(ord = case_when(str_detect(charachteristic, "Exact") ~ 1,
+                         str_detect(charachteristic, "Daily") ~ 2,
+                         str_detect(charachteristic, "Weekly") ~ 3,
+                         str_detect(charachteristic, "Monthly") ~ 4,
+                         str_detect(charachteristic, "Annual") ~ 5),
+         charachteristic = fct_reorder(charachteristic, ord))
+
+pl13 <- q13_pci %>%
+  ggplot(aes(fill = charachteristic,
+             colour = charachteristic)) + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = ord,
+                  x0 = meanAnswer,
+                  r = pci2),
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q13_pci$ord),
+                     labels = unique(q13_pci$charachteristic),
+                     limits = c(0.9, 5.5)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q13$score),
+                     labels = unique(q13$response)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5)) +
+  guides(fill = "none", 
+         color = "none") +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q13$respondent_id[!is.na(q13$response)]))),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5) +
+  labs(x = "",
+       y = "")
+pl13
+ggsave("./Output/q13_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 14: For the study species your are willing to share data about, at what frequency are you willing to share your data?
+
+```{r}
+q14 <- read_delim("./Interim/question14.csv", 
+                  delim = ";", 
+                  escape_double = FALSE, 
+                  trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q14_pci <- q14 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+
+pl14 <- q14_pci %>%
+  ggplot(aes(fill = charachteristic,
+             colour = charachteristic)) + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q14_pci$y),
+                     labels = unique(q14_pci$charachteristic)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q14$score),
+                     labels = unique(q14$response)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5)) +
+  guides(fill = "none", 
+         color = "none") +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q14$respondent_id[!is.na(q14$response)]))),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5) +
+  labs(x = "",
+       y = "")
+pl14
+ggsave("./Output/q14_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 15: Would the following safeguards positively influence your willingness to share data, for the species mentioned in Q11 and Q12?
+
+```{r}
+q15 <- read_delim("./Interim/question15.csv", 
+                  delim = ";", 
+                  escape_double = FALSE, 
+                  trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q15_pci <- q15 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+
+q15_pci %>%
+  ggplot(aes(fill = charachteristic,
+             colour = charachteristic)) + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q15_pci$y),
+                     labels = unique(q15_pci$charachteristic)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q15$score),
+                     labels = unique(q15$response)) +
+  labs(subtitle = paste0("n = ", q15_pci$n)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5)) +
+  guides(fill = "none", 
+         color = "none") +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q15$respondent_id[!is.na(q15$response)]))),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5) +
+  labs(x = "",
+       y = "")
+ggsave("./Output/q15_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 16: How willing are you to share data for the following purposes?
+
+```{r}
+q16 <- read_delim("./Interim/question16.csv", 
+                  delim = ";", 
+                  escape_double = FALSE, 
+                  trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q16_pci <- q16 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+
+q16_pci %>%
+  ggplot(aes(fill = charachteristic,
+             colour = charachteristic)) + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_point(aes(y = y,
+                 x = meanAnswer),
+             alpha = 0.5) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q16_pci$y),
+                     labels = unique(q16_pci$charachteristic)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q16$score),
+                     labels = unique(q16$response)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5)) +
+  guides(fill = "none", 
+         color = "none") +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q16$respondent_id[!is.na(q16$response)]))),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5) +
+  labs(x = "",
+       y = "")
+ggsave("./Output/q16_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 17: How much of an issue do you consider the following obstacles to be in regards to sharing your camera trap data?
+
+```{r}
+q17 <- read_delim("./Interim/question17.csv", 
+                  delim = ";", 
+                  escape_double = FALSE, 
+                  trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q17_pci <- q17 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+
+q17_pci %>%
+  ggplot(aes(fill = charachteristic,
+             colour = charachteristic)) + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q17_pci$y),
+                     labels = unique(q17_pci$charachteristic)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q17$score),
+                     labels = unique(q17$response)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5)) +
+  guides(fill = "none", 
+         color = "none") +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q17$respondent_id[!is.na(q17$response)]))),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5) +
+  labs(x = "",
+       y = "")
+ggsave("./Output/q17_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 18: What geographical resolution of camera trap data would you like to be shared with you?
+
+```{r}
+q18 <- read_delim("./Interim/question18.csv", 
+                  delim = ";", 
+                  escape_double = FALSE, 
+                  trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q18_pci <- q18 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
+  mutate(charachteristic = fct_reorder(charachteristic, y))
+
+pl18 <- q18_pci %>%
+  ggplot(aes(fill = charachteristic,
+             colour = charachteristic)) + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q18_pci$y),
+                     labels = unique(q18_pci$charachteristic),
+                     limits = c(0.8, 7.5)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q18$score),
+                     labels = unique(q18$response)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5)) +
+  guides(fill = "none", 
+         color = "none") +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q18$respondent_id[!is.na(q18$response)]))),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5) +
+  labs(x = "",
+       y = "")
+pl18
+ggsave("./Output/q18_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 19: What temporal resolution of camera trap data would you like to be shared with you?
+
+```{r}
+q19 <- read_delim("./Interim/question19.csv", 
+                  delim = ";", 
+                  escape_double = FALSE, 
+                  trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q19_pci <- q19 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
+  mutate(ord = case_when(str_detect(charachteristic, "Exact") ~ 1,
+                         str_detect(charachteristic, "Daily") ~ 2,
+                         str_detect(charachteristic, "Weekly") ~ 3,
+                         str_detect(charachteristic, "Monthly") ~ 4,
+                         str_detect(charachteristic, "Yearly") ~ 5),
+         charachteristic = fct_reorder(charachteristic, ord))
+
+pl19 <- q19_pci %>%
+  ggplot(aes(fill = charachteristic,
+             colour = charachteristic)) + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_point(aes(y = ord,
+                 x = meanAnswer),
+             alpha = 0.5) +
+  geom_circle(aes(y0 = ord,
+                  x0 = meanAnswer,
+                  r = pci2),
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q19_pci$ord),
+                     labels = unique(q19_pci$charachteristic),
+                     limits = c(0.9, 5.5)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q19$score),
+                     labels = unique(q19$response)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5)) +
+  guides(fill = "none", 
+         color = "none") +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q19$respondent_id[!is.na(q19$response)]))),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5) +
+  labs(x = "",
+       y = "")
+pl19
+ggsave("./Output/q19_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Q13-19 together
+
+```{r}
+pl13 + (pl19 +
+          theme(axis.text.y = element_blank()))
+ggsave("./Output/q1319.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Q12-18 together
+
+```{r}
+pl12 + (pl18 +
+          theme(axis.text.y = element_blank()))
+ggsave("./Output/q1218.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 20: How valuable do you think data from unstructured citizen science initiatives/projects (e.g. garden projects, opportunistic camera trapping) are for the following purposes?
+
+```{r}
+q20 <- read_delim("./Interim/question20.csv", 
+                  delim = ";", 
+                  escape_double = FALSE, 
+                  trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q20_pci <- q20 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+
+pl20 <- q20_pci %>%
+  ggplot(aes(fill = charachteristic,
+             colour = charachteristic)) + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_point(aes(y = y,
+                 x = meanAnswer),
+             alpha = 0.5) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q20_pci$y),
+                     labels = unique(q20_pci$charachteristic),
+                     limits = c(0.5, 7.5)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q20$score),
+                     labels = unique(q20$response)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5)) +
+  guides(fill = "none", 
+         color = "none") +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q20$respondent_id[!is.na(q20$response)]))),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5) +
+  labs(x = "",
+       y = "")
+pl20
+ggsave("./Output/q20_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Question 21: How valuable do you think data from structured citizen science (e.g. targeted camera trapping, hunter-owned camera traps) are for the following purposes?
+
+```{r}
+q21 <- read_delim("./Interim/question21.csv", 
+                  delim = ";", 
+                  escape_double = FALSE, 
+                  trim_ws = TRUE) %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q21_pci <- q21 %>%
+  group_by(charachteristic) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+
+pl21 <- q21_pci %>%
+  ggplot(aes(fill = charachteristic,
+             colour = charachteristic)) + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q21_pci$y),
+                     labels = unique(q21_pci$charachteristic),
+                     limits = c(0.5, 7.5)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q21$score),
+                     labels = unique(q21$response)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5)) +
+  guides(fill = "none", 
+         color = "none") +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q21$respondent_id[!is.na(q21$response)]))),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5) +
+  labs(x = "",
+       y = "")
+pl21
+ggsave("./Output/q21_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+# Q20-21 together
+
+```{r}
+pl20 + (pl21 +
+          theme(axis.text.y = element_blank()))
+ggsave("./Output/q2021.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
+
+# Question 22 + 23
+
+```{r}
+q22 <- read_delim("Interim/question22.csv", 
+                  delim = ";",
+                  escape_double = FALSE,
+                  trim_ws = TRUE) %>%
+  mutate(question = "Make original images publicly available") %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q23 <- read_delim("Interim/question23.csv", 
+                  delim = ";", 
+                  escape_double = FALSE, 
+                  trim_ws = TRUE) %>%
+  mutate(question = "Make species records publicly available (not images)") %>%
+  mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
+  filter(!is.na(score))
+
+q223 <- bind_rows(q22, q23)
+remove(q22, q23)
+
+q223_pci <- q223 %>%
+  group_by(question) %>%
+  summarise(meanAnswer = mean(score), 
+            sdAnswer = sd(score),
+            n = n(),
+            pci2 = qd_pci2(score)) %>%
+  ungroup() %>%
+  mutate(y = seq(1, length(unique(question)), by = 1))
+
+q223_pci %>%
+  ggplot(aes(fill = question,
+             colour = question)) + 
+  geom_vline(xintercept = 0,
+             linetype = 2) +
+  geom_circle(aes(y0 = y,
+                  x0 = meanAnswer,
+                  r = pci2),
+              alpha = 0.75) +
+  coord_fixed() +
+  scale_y_continuous(breaks = unique(q223_pci$y),
+                     labels = unique(q223_pci$question)) +
+  scale_x_continuous(limits = c(-2,2),
+                     breaks = unique(q223$score),
+                     labels = unique(q223$response)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5)) +
+  guides(fill = "none", 
+         color = "none") +
+  annotate("text",
+           x = Inf,
+           y = Inf,
+           label = paste0("n = ",
+                          length(unique(q223$respondent_id[!is.na(q223$score)]))),
+           vjust = 1,
+           hjust = 1,
+           size = 2.5) +
+  labs(x = "",
+       y = "")
+ggsave("./Output/q223_pci.png",
+       dpi = 300,
+       width = 30,
+       height = 20,
+       units = c("cm"))
+```
+
