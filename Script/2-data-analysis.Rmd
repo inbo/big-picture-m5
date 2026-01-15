@@ -28,9 +28,9 @@ q1 <- read_delim("./Interim/question1.csv",
 
 ## Cleaning
 ```{r}
-subset(q1, response == "South Africa")
+subset(q1, response == "South Africa" | response == "United States, Peru" | response == "Lebanon")
 
-respondents_to_scrap <- c("118788625159")
+respondents_to_scrap <- c("118788625159", "119022297166", "119029337164")
 ```
 
 ```{r}
@@ -42,7 +42,7 @@ q1 %>%
   theme(axis.text.x = element_text(angle = 90,
                                    hjust = 1,
                                    vjust = 0.5)) +
-  scale_y_continuous(limits = c(0, 15)) +
+  scale_y_continuous(limits = c(0, 25)) +
   annotate("text",
            x = Inf,
            y = Inf,
@@ -82,7 +82,7 @@ q2 %>%
   theme(axis.text.x = element_text(angle = 90,
                                    hjust = 1,
                                    vjust = 0.5)) +
-  scale_y_continuous(limits = c(0, 15)) +
+  scale_y_continuous(limits = c(0, 25)) +
   annotate("text",
            x = Inf,
            y = Inf,
@@ -122,7 +122,8 @@ q3 %>%
   geom_bar(aes(x = fct_infreq(response))) +
   labs(x = "Type of primary affiliation",
        y = "Number of responses") +
-  scale_y_continuous(limits = c(0, 40)) +
+  scale_y_continuous(limits = c(0, 75),
+                     breaks = seq(0, 75, by = 25)) +
   annotate("text",
            x = Inf,
            y = Inf,
@@ -161,7 +162,8 @@ q5 %>%
   geom_bar(aes(x = fct_infreq(response))) +
   labs(x = "",
        y = "Number of responses") +
-  scale_y_continuous(limits = c(0, 50)) +
+  scale_y_continuous(limits = c(0, 80),
+                     breaks = seq(0, 80, by = 20)) +
   annotate("text",
            x = Inf,
            y = Inf,
@@ -431,11 +433,11 @@ q13_pci <- q13 %>%
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
   mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
-  mutate(ord = case_when(str_detect(charachteristic, "Exact") ~ 1,
-                         str_detect(charachteristic, "Daily") ~ 2,
-                         str_detect(charachteristic, "Weekly") ~ 3,
-                         str_detect(charachteristic, "Monthly") ~ 4,
-                         str_detect(charachteristic, "Annual") ~ 5),
+  mutate(ord = case_when(str_detect(charachteristic, "exact") ~ 1,
+                         str_detect(charachteristic, "daily") ~ 2,
+                         str_detect(charachteristic, "weekly") ~ 3,
+                         str_detect(charachteristic, "monthly") ~ 4,
+                         str_detect(charachteristic, "annual") ~ 5),
          charachteristic = fct_reorder(charachteristic, ord))
 
 pl13 <- q13_pci %>%
@@ -795,11 +797,11 @@ q19_pci <- q19 %>%
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
   mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
-  mutate(ord = case_when(str_detect(charachteristic, "Exact") ~ 1,
-                         str_detect(charachteristic, "Daily") ~ 2,
-                         str_detect(charachteristic, "Weekly") ~ 3,
-                         str_detect(charachteristic, "Monthly") ~ 4,
-                         str_detect(charachteristic, "Yearly") ~ 5),
+  mutate(ord = case_when(str_detect(charachteristic, "exact") ~ 1,
+                         str_detect(charachteristic, "daily") ~ 2,
+                         str_detect(charachteristic, "weekly") ~ 3,
+                         str_detect(charachteristic, "monthly") ~ 4,
+                         str_detect(charachteristic, "yearly") ~ 5),
          charachteristic = fct_reorder(charachteristic, ord))
 
 pl19 <- q19_pci %>%
