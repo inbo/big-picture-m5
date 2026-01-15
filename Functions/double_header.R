@@ -4,6 +4,8 @@
 
 double_header <- function(x) {
   
+  require(janitor)
+  
   df <- as_tibble(x)
   
   keydat <- df %>%
@@ -18,5 +20,5 @@ double_header <- function(x) {
   df <- df %>%
     rename_at(vars(keydat$name), ~ keydat$value) %>%
     slice(-1) %>%
-    clean_names()
+    janitor::clean_names()
 }

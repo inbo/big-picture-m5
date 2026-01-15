@@ -11,22 +11,38 @@ output:
 ```{r}
 library(devtools)
 devtools::install_github("mattroumaya/surveymonkey")
+library(surveymonkey)
 library(tidyverse)
+
+source("./Functions/double_header.R")
 ```
 
-# Connect with Survey monkey
+# Input
+
+## Option 1: Connect with Survey monkey
+
+For some reason, this didn't work anymore the second time around. I tried fixing
+it and playing around with settings both here as in Survey Monkey, but no
+luck... That's why there's a second option.
 
 ```{r}
-m5_survey <- surveymonkey::browse_surveys(title = "Identifying data sharing issues regarding camera trap data in Europe",
-                                          oauth_token = sm_oauth_token)
-survey_ID <- c(m5_survey$id[1])
+# m5_survey <- surveymonkey::browse_surveys(title = "Identifying data sharing issues regarding camera trap data in Europe",
+#                                           oauth_token = sm_oauth_token)
+# survey_ID <- c(m5_survey$id[1])
+# 
+# # Get whole survey
+# survey <- surveymonkey::fetch_survey_obj(survey_ID,
+#                                          oauth_token = sm_oauth_token)
+# survey_df <- surveymonkey::parse_survey(survey,
+#                                         oauth_token = sm_oauth_token) %>%
+#   surveymonkey::strip_html()
+```
 
-# Get whole survey
-survey <- surveymonkey::fetch_survey_obj(survey_ID,
-                                         oauth_token = sm_oauth_token)
-survey_df <- surveymonkey::parse_survey(survey,
-                                        oauth_token = sm_oauth_token) %>%
-  surveymonkey::strip_html()
+## Option 2: read in csv
+
+```{r}
+survey_df <- read_csv("./Input/260115_SM_export/CSV/Identifying data sharing issues regarding camera trap data in Europe.csv") %>%
+  double_header()
 ```
 
 # Get question list
