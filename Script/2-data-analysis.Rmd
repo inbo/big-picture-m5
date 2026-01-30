@@ -16,6 +16,14 @@ conflicted::conflicts_prefer(dplyr::filter)
 conflicted::conflicts_prefer(dplyr::summarise)
 conflicted::conflicts_prefer(dplyr::mutate)
 ```
+# Labels
+
+```{r}
+labels <- read_delim("./Input/labels.csv", 
+                     delim = ";", 
+                     escape_double = FALSE, 
+                     trim_ws = TRUE)
+```
 
 # Question 1: What country/countries are your activities based in? Multiple answers are possible.
 
@@ -28,9 +36,9 @@ q1 <- read_delim("./Interim/question1.csv",
 
 ## Cleaning
 ```{r}
-subset(q1, response == "South Africa")
+subset(q1, response == "South Africa" | response == "United States, Peru" | response == "Lebanon")
 
-respondents_to_scrap <- c("118788625159")
+respondents_to_scrap <- c("118788625159", "119022297166", "119029337164")
 ```
 
 ```{r}
@@ -42,7 +50,7 @@ q1 %>%
   theme(axis.text.x = element_text(angle = 90,
                                    hjust = 1,
                                    vjust = 0.5)) +
-  scale_y_continuous(limits = c(0, 15)) +
+  scale_y_continuous(limits = c(0, 25)) +
   annotate("text",
            x = Inf,
            y = Inf,
@@ -82,7 +90,7 @@ q2 %>%
   theme(axis.text.x = element_text(angle = 90,
                                    hjust = 1,
                                    vjust = 0.5)) +
-  scale_y_continuous(limits = c(0, 15)) +
+  scale_y_continuous(limits = c(0, 25)) +
   annotate("text",
            x = Inf,
            y = Inf,
@@ -122,7 +130,8 @@ q3 %>%
   geom_bar(aes(x = fct_infreq(response))) +
   labs(x = "Type of primary affiliation",
        y = "Number of responses") +
-  scale_y_continuous(limits = c(0, 40)) +
+  scale_y_continuous(limits = c(0, 75),
+                     breaks = seq(0, 75, by = 25)) +
   annotate("text",
            x = Inf,
            y = Inf,
@@ -161,7 +170,8 @@ q5 %>%
   geom_bar(aes(x = fct_infreq(response))) +
   labs(x = "",
        y = "Number of responses") +
-  scale_y_continuous(limits = c(0, 50)) +
+  scale_y_continuous(limits = c(0, 80),
+                     breaks = seq(0, 80, by = 20)) +
   annotate("text",
            x = Inf,
            y = Inf,
@@ -195,11 +205,12 @@ q6_pci <- q6 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(topic)), by = 1))
+  mutate(y = seq(1, length(unique(topic)), by = 1)) %>%
+  left_join(labels, by = c("topic" = "label_underscore"))
 
 q6_pci %>%
-  ggplot(aes(fill = topic,
-             colour = topic)) + 
+  ggplot(aes(fill = label,
+             colour = label)) + 
   geom_vline(xintercept = 0,
              linetype = 2) +
   geom_circle(aes(y0 = y,
@@ -208,7 +219,7 @@ q6_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q6_pci$y),
-                     labels = unique(q6_pci$topic)) +
+                     labels = unique(q6_pci$label)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q6$score),
                      labels = unique(q6$response)) +
@@ -253,11 +264,12 @@ q8_pci <- q8 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
+  left_join(labels, by = c("charachteristic" = "label_underscore"))
 
 q8_pci %>%
-  ggplot(aes(fill = charachteristic,
-             colour = charachteristic)) + 
+  ggplot(aes(fill = label,
+             colour = label)) + 
   geom_vline(xintercept = 0,
              linetype = 2) +
   geom_circle(aes(y0 = y,
@@ -266,7 +278,7 @@ q8_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q8_pci$y),
-                     labels = unique(q8_pci$charachteristic)) +
+                     labels = unique(q8_pci$label)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q8$score),
                      labels = unique(q8$response)) +
@@ -311,11 +323,12 @@ q9_pci <- q9 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
+  left_join(labels, by = c("charachteristic" = "label_underscore"))
 
 q9_pci %>%
-  ggplot(aes(fill = charachteristic,
-             colour = charachteristic)) + 
+  ggplot(aes(fill = label,
+             colour = label)) + 
   geom_vline(xintercept = 0,
              linetype = 2) +
   geom_circle(aes(y0 = y,
@@ -324,7 +337,7 @@ q9_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q9_pci$y),
-                     labels = unique(q9_pci$charachteristic)) +
+                     labels = unique(q9_pci$label)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q9$score),
                      labels = unique(q9$response)) +
@@ -370,11 +383,12 @@ q12_pci <- q12 %>%
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
   mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
-  mutate(charachteristic = fct_reorder(charachteristic, y))
+  mutate(charachteristic = fct_reorder(charachteristic, y)) %>%
+  left_join(labels, by = c("charachteristic" = "label_underscore"))
 
 pl12 <- q12_pci %>%
-  ggplot(aes(fill = charachteristic,
-             colour = charachteristic)) + 
+  ggplot(aes(fill = label,
+             colour = label)) + 
   geom_vline(xintercept = 0,
              linetype = 2) +
   geom_circle(aes(y0 = y,
@@ -383,7 +397,7 @@ pl12 <- q12_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q12_pci$y),
-                     labels = unique(q12_pci$charachteristic),
+                     labels = unique(q12_pci$label),
                      limits = c(0.8, 7.5)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q12$score),
@@ -431,16 +445,17 @@ q13_pci <- q13 %>%
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
   mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
-  mutate(ord = case_when(str_detect(charachteristic, "Exact") ~ 1,
-                         str_detect(charachteristic, "Daily") ~ 2,
-                         str_detect(charachteristic, "Weekly") ~ 3,
-                         str_detect(charachteristic, "Monthly") ~ 4,
-                         str_detect(charachteristic, "Annual") ~ 5),
-         charachteristic = fct_reorder(charachteristic, ord))
+  left_join(labels, by = c("charachteristic" = "label_underscore")) %>%
+  mutate(ord = case_when(str_detect(label, "Exact") ~ 1,
+                         str_detect(label, "Daily") ~ 2,
+                         str_detect(label, "Weekly") ~ 3,
+                         str_detect(label, "Monthly") ~ 4,
+                         str_detect(label, "Annual") ~ 5),
+         label = fct_reorder(label, ord))
 
 pl13 <- q13_pci %>%
-  ggplot(aes(fill = charachteristic,
-             colour = charachteristic)) + 
+  ggplot(aes(fill = label,
+             colour = label)) + 
   geom_vline(xintercept = 0,
              linetype = 2) +
   geom_circle(aes(y0 = ord,
@@ -449,7 +464,7 @@ pl13 <- q13_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q13_pci$ord),
-                     labels = unique(q13_pci$charachteristic),
+                     labels = unique(q13_pci$label),
                      limits = c(0.9, 5.5)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q13$score),
@@ -496,11 +511,12 @@ q14_pci <- q14 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
+  left_join(labels, by = c("charachteristic" = "label_underscore"))
 
 pl14 <- q14_pci %>%
-  ggplot(aes(fill = charachteristic,
-             colour = charachteristic)) + 
+  ggplot(aes(fill = label,
+             colour = label)) + 
   geom_vline(xintercept = 0,
              linetype = 2) +
   geom_circle(aes(y0 = y,
@@ -509,7 +525,7 @@ pl14 <- q14_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q14_pci$y),
-                     labels = unique(q14_pci$charachteristic)) +
+                     labels = unique(q14_pci$label)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q14$score),
                      labels = unique(q14$response)) +
@@ -555,11 +571,12 @@ q15_pci <- q15 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
+  left_join(labels, by = c("charachteristic" = "label_underscore"))
 
 q15_pci %>%
-  ggplot(aes(fill = charachteristic,
-             colour = charachteristic)) + 
+  ggplot(aes(fill = label,
+             colour = label)) + 
   geom_vline(xintercept = 0,
              linetype = 2) +
   geom_circle(aes(y0 = y,
@@ -568,7 +585,7 @@ q15_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q15_pci$y),
-                     labels = unique(q15_pci$charachteristic)) +
+                     labels = unique(q15_pci$label)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q15$score),
                      labels = unique(q15$response)) +
@@ -614,11 +631,12 @@ q16_pci <- q16 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
+  left_join(labels, by = c("charachteristic" = "label_underscore"))
 
 q16_pci %>%
-  ggplot(aes(fill = charachteristic,
-             colour = charachteristic)) + 
+  ggplot(aes(fill = label,
+             colour = label)) + 
   geom_vline(xintercept = 0,
              linetype = 2) +
   geom_point(aes(y = y,
@@ -630,7 +648,7 @@ q16_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q16_pci$y),
-                     labels = unique(q16_pci$charachteristic)) +
+                     labels = unique(q16_pci$label)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q16$score),
                      labels = unique(q16$response)) +
@@ -675,11 +693,12 @@ q17_pci <- q17 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
+  left_join(labels, by = c("charachteristic" = "label_underscore"))
 
 q17_pci %>%
-  ggplot(aes(fill = charachteristic,
-             colour = charachteristic)) + 
+  ggplot(aes(fill = label,
+             colour = label)) + 
   geom_vline(xintercept = 0,
              linetype = 2) +
   geom_circle(aes(y0 = y,
@@ -688,7 +707,7 @@ q17_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q17_pci$y),
-                     labels = unique(q17_pci$charachteristic)) +
+                     labels = unique(q17_pci$label)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q17$score),
                      labels = unique(q17$response)) +
@@ -734,11 +753,12 @@ q18_pci <- q18 %>%
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
   mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
-  mutate(charachteristic = fct_reorder(charachteristic, y))
+  mutate(charachteristic = fct_reorder(charachteristic, y)) %>%
+  left_join(labels, by = c("charachteristic" = "label_underscore"))
 
 pl18 <- q18_pci %>%
-  ggplot(aes(fill = charachteristic,
-             colour = charachteristic)) + 
+  ggplot(aes(fill = label,
+             colour = label)) + 
   geom_vline(xintercept = 0,
              linetype = 2) +
   geom_circle(aes(y0 = y,
@@ -747,7 +767,7 @@ pl18 <- q18_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q18_pci$y),
-                     labels = unique(q18_pci$charachteristic),
+                     labels = unique(q18_pci$label),
                      limits = c(0.8, 7.5)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q18$score),
@@ -795,16 +815,17 @@ q19_pci <- q19 %>%
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
   mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
-  mutate(ord = case_when(str_detect(charachteristic, "Exact") ~ 1,
-                         str_detect(charachteristic, "Daily") ~ 2,
-                         str_detect(charachteristic, "Weekly") ~ 3,
-                         str_detect(charachteristic, "Monthly") ~ 4,
-                         str_detect(charachteristic, "Yearly") ~ 5),
-         charachteristic = fct_reorder(charachteristic, ord))
+  left_join(labels, by = c("charachteristic" = "label_underscore")) %>%
+  mutate(ord = case_when(str_detect(label, "Exact") ~ 1,
+                         str_detect(label, "Daily") ~ 2,
+                         str_detect(label, "Weekly") ~ 3,
+                         str_detect(label, "Monthly") ~ 4,
+                         str_detect(label, "Yearly") ~ 5),
+         label = fct_reorder(label, ord))
 
 pl19 <- q19_pci %>%
-  ggplot(aes(fill = charachteristic,
-             colour = charachteristic)) + 
+  ggplot(aes(fill = label,
+             colour = label)) + 
   geom_vline(xintercept = 0,
              linetype = 2) +
   geom_point(aes(y = ord,
@@ -816,7 +837,7 @@ pl19 <- q19_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q19_pci$ord),
-                     labels = unique(q19_pci$charachteristic),
+                     labels = unique(q19_pci$label),
                      limits = c(0.9, 5.5)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q19$score),
@@ -849,6 +870,8 @@ ggsave("./Output/q19_pci.png",
 # Q13-19 together
 
 ```{r}
+pl13
+pl19
 pl13 + (pl19 +
           theme(axis.text.y = element_blank()))
 ggsave("./Output/q1319.png",
@@ -861,6 +884,8 @@ ggsave("./Output/q1319.png",
 # Q12-18 together
 
 ```{r}
+pl12
+pl18
 pl12 + (pl18 +
           theme(axis.text.y = element_blank()))
 ggsave("./Output/q1218.png",
@@ -887,11 +912,12 @@ q20_pci <- q20 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
+  left_join(labels, by = c("charachteristic" = "label_underscore"))
 
 pl20 <- q20_pci %>%
-  ggplot(aes(fill = charachteristic,
-             colour = charachteristic)) + 
+  ggplot(aes(fill = label,
+             colour = label)) + 
   geom_vline(xintercept = 0,
              linetype = 2) +
   geom_point(aes(y = y,
@@ -903,7 +929,7 @@ pl20 <- q20_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q20_pci$y),
-                     labels = unique(q20_pci$charachteristic),
+                     labels = unique(q20_pci$label),
                      limits = c(0.5, 7.5)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q20$score),
@@ -950,11 +976,12 @@ q21_pci <- q21 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1))
+  mutate(y = seq(1, length(unique(charachteristic)), by = 1))  %>%
+  left_join(labels, by = c("charachteristic" = "label_underscore"))
 
 pl21 <- q21_pci %>%
-  ggplot(aes(fill = charachteristic,
-             colour = charachteristic)) + 
+  ggplot(aes(fill = label,
+             colour = label)) + 
   geom_vline(xintercept = 0,
              linetype = 2) +
   geom_circle(aes(y0 = y,
@@ -963,7 +990,7 @@ pl21 <- q21_pci %>%
               alpha = 0.75) +
   coord_fixed() +
   scale_y_continuous(breaks = unique(q21_pci$y),
-                     labels = unique(q21_pci$charachteristic),
+                     labels = unique(q21_pci$label),
                      limits = c(0.5, 7.5)) +
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q21$score),
@@ -996,6 +1023,8 @@ ggsave("./Output/q21_pci.png",
 # Q20-21 together
 
 ```{r}
+pl20
+pl21
 pl20 + (pl21 +
           theme(axis.text.y = element_blank()))
 ggsave("./Output/q2021.png",
