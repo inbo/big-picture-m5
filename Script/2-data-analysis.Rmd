@@ -286,7 +286,8 @@ q8_pci %>%
         plot.subtitle = element_text(hjust = 0.5),
         axis.text.x = element_text(angle = 90,
                                    hjust = 1,
-                                   vjust = 0.5)) +
+                                   vjust = 0.5,
+                                   size = 10)) +
   labs(x = "",
        y = "") +
   guides(fill = "none", 
@@ -345,7 +346,8 @@ q9_pci %>%
         plot.subtitle = element_text(hjust = 0.5),
         axis.text.x = element_text(angle = 90,
                                    hjust = 1,
-                                   vjust = 0.5)) +
+                                   vjust = 0.5,
+                                   size = 10)) +
   guides(fill = "none", 
          color = "none") +
   annotate("text",
@@ -406,7 +408,8 @@ pl12 <- q12_pci %>%
         plot.subtitle = element_text(hjust = 0.5),
         axis.text.x = element_text(angle = 90,
                                    hjust = 1,
-                                   vjust = 0.5)) +
+                                   vjust = 0.5,
+                                   size = 10)) +
   guides(fill = "none", 
          color = "none") +
   annotate("text",
@@ -473,7 +476,8 @@ pl13 <- q13_pci %>%
         plot.subtitle = element_text(hjust = 0.5),
         axis.text.x = element_text(angle = 90,
                                    hjust = 1,
-                                   vjust = 0.5)) +
+                                   vjust = 0.5,
+                                   size = 10)) +
   guides(fill = "none", 
          color = "none") +
   annotate("text",
@@ -533,7 +537,8 @@ pl14 <- q14_pci %>%
         plot.subtitle = element_text(hjust = 0.5),
         axis.text.x = element_text(angle = 90,
                                    hjust = 1,
-                                   vjust = 0.5)) +
+                                   vjust = 0.5,
+                                   size = 10)) +
   guides(fill = "none", 
          color = "none") +
   annotate("text",
@@ -589,12 +594,12 @@ q15_pci %>%
   scale_x_continuous(limits = c(-2,2),
                      breaks = unique(q15$score),
                      labels = unique(q15$response)) +
-  labs(subtitle = paste0("n = ", q15_pci$n)) +
   theme(plot.title = element_text(hjust = 0.5),
         plot.subtitle = element_text(hjust = 0.5),
         axis.text.x = element_text(angle = 90,
                                    hjust = 1,
-                                   vjust = 0.5)) +
+                                   vjust = 0.5,
+                                   size = 10)) +
   guides(fill = "none", 
          color = "none") +
   annotate("text",
@@ -656,7 +661,8 @@ q16_pci %>%
         plot.subtitle = element_text(hjust = 0.5),
         axis.text.x = element_text(angle = 90,
                                    hjust = 1,
-                                   vjust = 0.5)) +
+                                   vjust = 0.5,
+                                   size = 10)) +
   guides(fill = "none", 
          color = "none") +
   annotate("text",
@@ -709,6 +715,7 @@ q17_pci %>%
   scale_y_continuous(breaks = unique(q17_pci$y),
                      labels = unique(q17_pci$label)) +
   scale_x_continuous(limits = c(-2,2),
+                     trans = "reverse",
                      breaks = unique(q17$score),
                      labels = unique(q17$response)) +
   theme(plot.title = element_text(hjust = 0.5),
@@ -719,7 +726,7 @@ q17_pci %>%
   guides(fill = "none", 
          color = "none") +
   annotate("text",
-           x = Inf,
+           x = -Inf,
            y = Inf,
            label = paste0("n = ",
                           length(unique(q17$respondent_id[!is.na(q17$response)]))),
@@ -776,7 +783,8 @@ pl18 <- q18_pci %>%
         plot.subtitle = element_text(hjust = 0.5),
         axis.text.x = element_text(angle = 90,
                                    hjust = 1,
-                                   vjust = 0.5)) +
+                                   vjust = 0.5,
+                                   size = 10)) +
   guides(fill = "none", 
          color = "none") +
   annotate("text",
@@ -846,7 +854,8 @@ pl19 <- q19_pci %>%
         plot.subtitle = element_text(hjust = 0.5),
         axis.text.x = element_text(angle = 90,
                                    hjust = 1,
-                                   vjust = 0.5)) +
+                                   vjust = 0.5,
+                                   size = 10)) +
   guides(fill = "none", 
          color = "none") +
   annotate("text",
@@ -938,7 +947,8 @@ pl20 <- q20_pci %>%
         plot.subtitle = element_text(hjust = 0.5),
         axis.text.x = element_text(angle = 90,
                                    hjust = 1,
-                                   vjust = 0.5)) +
+                                   vjust = 0.5,
+                                   size = 10)) +
   guides(fill = "none", 
          color = "none") +
   annotate("text",
@@ -999,7 +1009,8 @@ pl21 <- q21_pci %>%
         plot.subtitle = element_text(hjust = 0.5),
         axis.text.x = element_text(angle = 90,
                                    hjust = 1,
-                                   vjust = 0.5)) +
+                                   vjust = 0.5,
+                                   size = 10)) +
   guides(fill = "none", 
          color = "none") +
   annotate("text",
@@ -1085,7 +1096,8 @@ q223_pci %>%
         plot.subtitle = element_text(hjust = 0.5),
         axis.text.x = element_text(angle = 90,
                                    hjust = 1,
-                                   vjust = 0.5)) +
+                                   vjust = 0.5,
+                                   size = 10)) +
   guides(fill = "none", 
          color = "none") +
   annotate("text",
