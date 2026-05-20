@@ -905,6 +905,8 @@ q17_pci <- q17 %>%
   arrange(meanAnswer) %>%
   mutate(y = row_number())
 
+q17_pci <- q17_pci %>% mutate(label = str_wrap(label, width = 30))
+
 # 3. Generate the plot
 q17_pci %>%
   ggplot(aes(y0 = y, x0 = meanAnswer, r = pci2, 
@@ -1284,6 +1286,8 @@ q223_pci <- q223 %>%
   ungroup() %>%
   arrange(meanAnswer) %>%
   mutate(y = row_number())
+
+q223_pci <- q223_pci %>% mutate(question = str_wrap(question, width = 30))
 
 # 3. Generate the plot
 q223_pci %>%
