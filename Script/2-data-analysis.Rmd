@@ -27,8 +27,11 @@ labels <- read_delim("./Input/labels.csv",
                      escape_double = FALSE, 
                      trim_ws = TRUE)
 
+# fix typos
 labels <- labels %>% mutate(
+  label = str_replace(label, "of.t thedatain", "of the data in"),
   label = str_replace(label, "requesy", "request"),
+  label = str_replace(label, "estimatng", "estimating"),
   label = str_replace(label, "eporting", "reporting"))
 ```
 
