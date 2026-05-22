@@ -11,6 +11,9 @@ library(fistools)
 library(ggforce)
 library(patchwork)
 library(tidyverse)
+library(RColorBrewer)
+library(rnaturalearth)
+library(sf)
 
 conflicted::conflicts_prefer(dplyr::filter)
 conflicted::conflicts_prefer(dplyr::summarise)
@@ -23,6 +26,13 @@ labels <- read_delim("./Input/labels.csv",
                      delim = ";", 
                      escape_double = FALSE, 
                      trim_ws = TRUE)
+
+# fix typos
+labels <- labels %>% mutate(
+  label = str_replace(label, "of.t thedatain", "of the data in"),
+  label = str_replace(label, "requesy", "request"),
+  label = str_replace(label, "estimatng", "estimating"),
+  label = str_replace(label, "eporting", "reporting"))
 ```
 
 # Question 1: What country/countries are your activities based in? Multiple answers are possible.
@@ -40,6 +50,7 @@ subset(q1, response == "South Africa" | response == "United States, Peru" | resp
 
 respondents_to_scrap <- c("118788625159", "119022297166", "119029337164")
 ```
+
 
 ```{r}
 q1 %>%
@@ -60,13 +71,80 @@ q1 %>%
                           nrow(q1)),
            vjust = 1,
            hjust = 1,
-           size = 2.5)
+           size = 3.5)
 ggsave("./Output/q1.png",
        dpi = 300,
-       width = 15,
+       width = 16,
        height = 10,
        units = c("cm"))
 ```
+
+```{r}
+# 1. Fetch country regional metadata from rnaturalearth
+world_metadata <- ne_countries(scale = "medium", returnclass = "sf") %>%
+  st_drop_geometry() %>%
+  select(name, subregion)
+
+all_regions <- c(
+  "Southern Europe", "Western Europe", "Northern Europe", 
+  "Eastern Europe",  "Western Asia",   "Southern Africa", "Northern America"
+)
+region_colors <- setNames(brewer.pal(7, "Dark2"), all_regions)
+
+# 2. Clean survey country names and join regional metadata
+q1_grouped <- q1 %>%
+  mutate(response = case_when(
+    response == "United States, Peru" ~ "United States of America, Peru", 
+    TRUE ~ response
+  )) %>%
+  separate_longer_delim(response, delim = ", ") %>% 
+  left_join(world_metadata, by = c("response" = "name")) %>%
+  filter(!is.na(subregion))
+
+# 3. Summarize data into regional totals and multi-line country text blocks
+q1_summary <- q1_grouped %>%
+  group_by(subregion, response) %>%
+  summarise(country_n = n(), .groups = "drop") %>%
+  arrange(subregion, desc(country_n)) %>% 
+  mutate(country_label = paste0(response, " (", country_n, ")")) %>%
+  group_by(subregion) %>%
+  summarise(
+    total_responses = sum(country_n),
+    country_stack = paste(country_label, collapse = "\n")
+  )
+
+# 4. Generate final plot with staggered text layouts
+q1_summary %>%
+  ggplot(aes(x = total_responses, y = fct_reorder(subregion, total_responses), 
+             fill = subregion, color = subregion)) +
+  geom_col(width = 0.4, show.legend = FALSE) + 
+  geom_text(aes(label = country_stack), 
+            hjust = 0, 
+            vjust = 0.5, 
+            nudge_x = 2,           
+            size = 2.5,            
+            lineheight = 0.85,     
+            show.legend = FALSE) +  
+  labs(x = "Number of responses", 
+       y = "Region/ country of activity",
+       subtitle = paste0("n = ", length(unique(q1$respondent_id)), 
+                         " | m = ", nrow(q1_grouped))) +
+  scale_x_continuous(limits = c(0, 100)) + 
+  scale_fill_manual(values = region_colors) +
+  scale_color_manual(values = region_colors) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.subtitle = element_text(hjust = 1, size = 10, color = "gray30"))
+
+# 5. Save output (height = 22cm provides vertical room to prevent text overlap)
+ggsave("./Output/q1_regions.png",
+       dpi = 300,
+       width = 18,       
+       height = 22,   
+       units = "cm")
+```
+
 
 # Question 2: What country is your primary affiliation located in?
 
@@ -76,11 +154,14 @@ q2 <- read_delim("./Interim/question2.csv",
                  escape_double = FALSE, 
                  trim_ws = TRUE)
 ```
+
 ```{r}
 subset(q2, respondent_id %in% respondents_to_scrap)
 ```
 
 ```{r}
+q2 %>% count(response) %>% arrange(desc(n))
+
 q2 %>%
   filter(!is.na(response)) %>%
   ggplot() +
@@ -98,7 +179,7 @@ q2 %>%
                           length(unique(q2$respondent_id[!is.na(q2$response)]))),
            vjust = 1,
            hjust = 1,
-           size = 2.5)
+           size = 3.5)
 ggsave("./Output/q2.png",
        dpi = 300,
        width = 15,
@@ -106,6 +187,59 @@ ggsave("./Output/q2.png",
        units = c("cm"))
 ```
 
+```{r}
+# 2. Clean survey country names and join regional metadata
+q2_grouped <- q2 %>%
+  mutate(response = case_when(
+    response == "United States" ~ "United States of America",
+    TRUE ~ response
+  )) %>%
+  left_join(world_metadata, by = c("response" = "name")) %>%
+  filter(!is.na(subregion))
+
+# 3. Summarize data into regional totals and multi-line country text blocks
+q2_summary <- q2_grouped %>%
+  group_by(subregion, response) %>%
+  summarise(country_n = n(), .groups = "drop") %>%
+  arrange(subregion, desc(country_n)) %>% 
+  mutate(country_label = paste0(response, " (", country_n, ")")) %>%
+  group_by(subregion) %>%
+  summarise(
+    total_responses = sum(country_n),
+    country_stack = paste(country_label, collapse = "\n")
+  )
+
+# 4. Generate final plot with staggered text layouts
+q2_summary %>%
+  ggplot(aes(x = total_responses, y = fct_reorder(subregion, total_responses), 
+             fill = subregion, color = subregion)) +
+  geom_col(width = 0.4, show.legend = FALSE) + 
+  geom_text(aes(label = country_stack), 
+            hjust = 0, 
+            vjust = 0.5, 
+            nudge_x = 2,           
+            size = 2.5,            
+            lineheight = 0.85,     
+            show.legend = FALSE) +  
+  labs(x = "Number of responses", 
+       y = "Region/ country of primary affiliation",
+       subtitle = paste0("n = ",
+                          length(unique(q2$respondent_id[!is.na(q2$response)])))) +
+  scale_x_continuous(limits = c(0, 100)) + 
+  scale_fill_manual(values = region_colors) +
+  scale_color_manual(values = region_colors) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.subtitle = element_text(hjust = 1, size = 10, color = "gray30"))
+
+# 5. Save output (height = 22cm provides vertical room to prevent text overlap)
+ggsave("./Output/q2_regions.png",
+       dpi = 300,
+       width = 18,       
+       height = 18,   
+       units = "cm")
+```
 
 # Question 3: How would you classify your primary affiliation?
 
@@ -187,9 +321,73 @@ ggsave("./Output/q5.png",
        units = c("cm"))
 ```
 
+```{r}
+# 1. Prepare, count, and explicitly order the data
+chart_data <- left_join(q3, q5, by = "respondent_id") %>%
+  filter(!is.na(response.x)) %>%
+  mutate(
+    response.x = case_when(
+      str_detect(response.x, "Academic") ~ "Academic",
+      str_detect(response.x, "Scientific") ~ "Scientific",
+      TRUE ~ response.x
+    ),
+    response.y = case_when(
+      is.na(response.y) ~ "Not reported",
+      str_detect(response.y, "user") ~ "User",
+      str_detect(response.y, "collector") ~ "Collector",
+      TRUE ~ response.y
+    )
+  ) %>%
+  count(response.x, response.y) %>%
+  
+  # FIX: Calculate GLOBAL totals for the stacks to force a clean, descending order
+  group_by(response.y) %>%
+  mutate(total_y = sum(n)) %>%
+  ungroup() %>%
+  mutate(response.y = fct_reorder(response.y, total_y, .desc = FALSE)) %>%
+  
+  # Calculate totals for the main bars (largest bar on top)
+  group_by(response.x) %>%
+  mutate(total_x = sum(n)) %>%
+  ungroup() %>%
+  mutate(response.x = fct_reorder(response.x, total_x))
+
+# 2. Generate the plot
+chart_data %>%
+  ggplot(aes(x = n, y = response.x, fill = response.y)) +
+  geom_col(width = 0.5) +
+  
+  # Numbers sit perfectly centered in their respective colored segments
+  geom_text(aes(label = n), 
+            position = position_stack(vjust = 0.5), 
+            color = "white", 
+            fontface = "bold", 
+            size = 3) +
+  
+  labs(x = "Number of responses",
+       y = "Type of primary affiliation",
+       fill = "Role",
+       subtitle = paste0("n = ", length(unique(q3$respondent_id[!is.na(q3$response)])))) +
+  scale_x_continuous(limits = c(0, 75), breaks = seq(0, 75, by = 25)) +
+  scale_fill_brewer(palette = "Dark2", direction = -1) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.subtitle = element_text(hjust = 1, size = 10, color = "gray30"))
+
+# 3. Save output
+ggsave("./Output/q3_q5_combined.png",
+       dpi = 300,
+       width = 18,
+       height = 12,
+       units = "cm")
+```
+
+
 # Question 6: What are your camera trapping-related research questions?
 
 ```{r}
+# 1. Read and process data
 q6 <- read_delim("./Interim/question6.csv", 
                  delim = ";", 
                  escape_double = FALSE, 
@@ -198,58 +396,50 @@ q6 <- read_delim("./Interim/question6.csv",
   mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
   filter(!is.na(score))
 
-q6_pci <- q6 %>%
-  group_by(topic) %>%
-  summarise(meanAnswer = mean(score), 
-            sdAnswer = sd(score),
-            n = n(),
-            pci2 = qd_pci2(score)) %>%
-  ungroup() %>%
-  mutate(y = seq(1, length(unique(topic)), by = 1)) %>%
-  left_join(labels, by = c("topic" = "label_underscore"))
-
+# 2. Calculate PCI and sort by decreasing agreement (smallest pci2 at the top)
 q6_pci %>%
-  ggplot(aes(fill = label,
-             colour = label)) + 
-  geom_vline(xintercept = 0,
-             linetype = 2) +
-  geom_circle(aes(y0 = y,
-                  x0 = meanAnswer,
-                  r = pci2),
-              alpha = 0.75) +
+  # 1. Map fill and color to the continuous mean score
+  ggplot(aes(y0 = y, x0 = meanAnswer, r = pci2, 
+             fill = meanAnswer, color = meanAnswer)) + 
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  
+  # 2. Let geom_circle inherit the aesthetics (removed hardcoded fill/color)
+  geom_circle(alpha = 0.7) +
+  
   coord_fixed() +
-  scale_y_continuous(breaks = unique(q6_pci$y),
-                     labels = unique(q6_pci$label)) +
-  scale_x_continuous(limits = c(-2,2),
+  scale_y_continuous(breaks = q6_pci$y, labels = q6_pci$label) +
+  scale_x_continuous(limits = c(-2, 2),
                      breaks = unique(q6$score),
                      labels = unique(q6$response)) +
-  theme(plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 90,
-                                   hjust = 1,
-                                   vjust = 0.5)) +
-  guides(fill = "none", 
-         color = "none") +
-  annotate("text",
-           x = Inf,
-           y = Inf,
-           label = paste0("n = ",
-                          length(unique(q6$respondent_id[!is.na(q6$response)]))),
-           vjust = 1,
-           hjust = 1,
-           size = 2.5) +
+  
+  # 3. Apply a professional, muted diverging color palette (Red to Blue)
+  scale_fill_gradient2(low = "#b2182b", mid = "#f7f7f7", high = "#2166ac", midpoint = 0) +
+  scale_color_gradient2(low = "#67001f", mid = "gray70", high = "#053061", midpoint = 0) +
+  
+  # 4. Hide the gradient legend to keep the focus entirely on the data
+  guides(fill = "none", color = "none") +
+  
   labs(x = "",
-       y = "")
+       y = "",
+       subtitle = paste0("n = ", length(unique(q6$respondent_id[!is.na(q6$response)])))) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.subtitle = element_text(hjust = 1, size = 10, color = "gray30"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+# 4. Save output
 ggsave("./Output/q6_pci.png",
        dpi = 300,
-       width = 30,
-       height = 20,
-       units = c("cm"))
+       width = 12,
+       height = 16,
+       units = "cm")
 ```
 
 # Question 8: How important do you rate the following characteristics of potential camera trap data management tools?
 
 ```{r}
+# 1. Read and process data
 q8 <- read_delim("./Interim/question8.csv", 
                  delim = ";", 
                  escape_double = FALSE, 
@@ -257,6 +447,7 @@ q8 <- read_delim("./Interim/question8.csv",
   mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
   filter(!is.na(score))
 
+# 2. Calculate PCI and sort by Mean Score for a diagonal flow
 q8_pci <- q8 %>%
   group_by(charachteristic) %>%
   summarise(meanAnswer = mean(score), 
@@ -264,52 +455,52 @@ q8_pci <- q8 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
-  left_join(labels, by = c("charachteristic" = "label_underscore"))
+  left_join(labels, by = c("charachteristic" = "label_underscore")) %>%
+  arrange(meanAnswer) %>%
+  mutate(y = row_number())
 
+q8_pci <- q8_pci %>% mutate(label = str_wrap(label, width = 30))
+
+# 3. Generate the plot
 q8_pci %>%
-  ggplot(aes(fill = label,
-             colour = label)) + 
-  geom_vline(xintercept = 0,
-             linetype = 2) +
-  geom_circle(aes(y0 = y,
-                  x0 = meanAnswer,
-                  r = pci2),
-              alpha = 0.75) +
+  ggplot(aes(y0 = y, x0 = meanAnswer, r = pci2, 
+             fill = meanAnswer, color = meanAnswer)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_circle(alpha = 0.7) +
+  
   coord_fixed() +
-  scale_y_continuous(breaks = unique(q8_pci$y),
-                     labels = unique(q8_pci$label)) +
-  scale_x_continuous(limits = c(-2,2),
+  scale_y_continuous(breaks = q8_pci$y, labels = q8_pci$label) +
+  scale_x_continuous(limits = c(-2, 2),
                      breaks = unique(q8$score),
                      labels = unique(q8$response)) +
-  theme(plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 90,
-                                   hjust = 1,
-                                   vjust = 0.5,
-                                   size = 10)) +
+  
+  # Professional diverging neutrality gradient (Red = Negative, Blue = Positive)
+  scale_fill_gradient2(low = "#b2182b", mid = "#f7f7f7", high = "#2166ac", midpoint = 0) +
+  scale_color_gradient2(low = "#67001f", mid = "gray70", high = "#053061", midpoint = 0) +
+  guides(fill = "none", color = "none") +
+  
   labs(x = "",
-       y = "") +
-  guides(fill = "none", 
-         color = "none") +
-  annotate("text",
-           x = Inf,
-           y = Inf,
-           label = paste0("n = ",
-                          length(unique(q8$respondent_id[!is.na(q8$response)]))),
-           vjust = 1,
-           hjust = 1,
-           size = 2.5)
+       y = "",
+       subtitle = paste0("n = ", length(unique(q8$respondent_id[!is.na(q8$response)])))) +
+  
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.subtitle = element_text(hjust = 1, size = 10, color = "gray30"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10))
+
+# 4. Save output
 ggsave("./Output/q8_pci.png",
        dpi = 300,
-       width = 30,
-       height = 20,
-       units = c("cm"))
+       width = 16,
+       height = 18,
+       units = "cm")
 ```
 
 # Question 9: How desirable do you find the inclusion of the following features into data management tools?
 
 ```{r}
+# 1. Read and process data
 q9 <- read_delim("./Interim/question9.csv", 
                  delim = ";", 
                  escape_double = FALSE, 
@@ -317,6 +508,7 @@ q9 <- read_delim("./Interim/question9.csv",
   mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
   filter(!is.na(score))
 
+# 2. Calculate PCI and sort by Mean Score for a diagonal flow
 q9_pci <- q9 %>%
   group_by(charachteristic) %>%
   summarise(meanAnswer = mean(score), 
@@ -324,52 +516,50 @@ q9_pci <- q9 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
-  left_join(labels, by = c("charachteristic" = "label_underscore"))
+  left_join(labels, by = c("charachteristic" = "label_underscore")) %>%
+  arrange(meanAnswer) %>%
+  mutate(y = row_number())
 
+# 3. Generate the plot
 q9_pci %>%
-  ggplot(aes(fill = label,
-             colour = label)) + 
-  geom_vline(xintercept = 0,
-             linetype = 2) +
-  geom_circle(aes(y0 = y,
-                  x0 = meanAnswer,
-                  r = pci2),
-              alpha = 0.75) +
+  ggplot(aes(y0 = y, x0 = meanAnswer, r = pci2, 
+             fill = meanAnswer, color = meanAnswer)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_circle(alpha = 0.7) +
+  
   coord_fixed() +
-  scale_y_continuous(breaks = unique(q9_pci$y),
-                     labels = unique(q9_pci$label)) +
-  scale_x_continuous(limits = c(-2,2),
+  scale_y_continuous(breaks = q9_pci$y, labels = q9_pci$label) +
+  scale_x_continuous(limits = c(-2, 2),
                      breaks = unique(q9$score),
                      labels = unique(q9$response)) +
-  theme(plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 90,
-                                   hjust = 1,
-                                   vjust = 0.5,
-                                   size = 10)) +
-  guides(fill = "none", 
-         color = "none") +
-  annotate("text",
-           x = Inf,
-           y = Inf,
-           label = paste0("n = ",
-                          length(unique(q9$respondent_id[!is.na(q9$response)]))),
-           vjust = 1,
-           hjust = 1,
-           size = 2.5) +
+  
+  # Professional diverging neutrality gradient (Red = Negative, Blue = Positive)
+  scale_fill_gradient2(low = "#b2182b", mid = "#f7f7f7", high = "#2166ac", midpoint = 0) +
+  scale_color_gradient2(low = "#67001f", mid = "gray70", high = "#053061", midpoint = 0) +
+  guides(fill = "none", color = "none") +
+  
   labs(x = "",
-       y = "")
+       y = "",
+       subtitle = paste0("n = ", length(unique(q9$respondent_id[!is.na(q9$response)])))) +
+  
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.subtitle = element_text(hjust = 1, size = 10, color = "gray30"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10))
+
+# 4. Save output
 ggsave("./Output/q9_pci.png",
        dpi = 300,
-       width = 30,
-       height = 20,
-       units = c("cm"))
+       width = 12,
+       height = 10,
+       units = "cm")
 ```
 
 # Question 12: For the study species your are willing to share data about, at what geographical resolution are you willing to share your data?
 
 ```{r}
+# 1. Read and process data
 q12 <- read_delim("./Interim/question12.csv", 
                   delim = ";", 
                   escape_double = FALSE, 
@@ -377,6 +567,7 @@ q12 <- read_delim("./Interim/question12.csv",
   mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
   filter(!is.na(score))
 
+# 2. Calculate PCI and sort by Mean Score for a diagonal flow
 q12_pci <- q12 %>%
   group_by(charachteristic) %>%
   summarise(meanAnswer = mean(score), 
@@ -384,55 +575,61 @@ q12_pci <- q12 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
-  mutate(charachteristic = fct_reorder(charachteristic, y)) %>%
-  left_join(labels, by = c("charachteristic" = "label_underscore"))
+  left_join(labels, by = c("charachteristic" = "label_underscore")) %>%
+    mutate(ord = case_when(str_detect(label, "National") ~ 7,
+                         str_detect(label, "Regional") ~ 6,
+                         str_detect(label, "Municipality") ~ 5,
+                         str_detect(label, "Study") ~ 4,
+                         str_detect(label, "Grid") ~ 3,
+                         str_detect(label, "Generalised") ~ 2,
+                         str_detect(label, "Exact") ~ 1
+                         )
+           ) %>%
+  # Arranging ensures y-axis breaks and text labels line up perfectly
+  arrange(ord)
 
+# 3. Generate the plot
 pl12 <- q12_pci %>%
-  ggplot(aes(fill = label,
-             colour = label)) + 
-  geom_vline(xintercept = 0,
-             linetype = 2) +
-  geom_circle(aes(y0 = y,
-                  x0 = meanAnswer,
-                  r = pci2),
-              alpha = 0.75) +
+  ggplot(aes(y0 = ord, x0 = meanAnswer, r = pci2, 
+             fill = meanAnswer, color = meanAnswer)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_circle(alpha = 0.7) +
   coord_fixed() +
-  scale_y_continuous(breaks = unique(q12_pci$y),
-                     labels = unique(q12_pci$label),
-                     limits = c(0.8, 7.5)) +
-  scale_x_continuous(limits = c(-2,2),
+  scale_y_continuous(breaks = q12_pci$ord, labels = q12_pci$label) +
+  scale_x_continuous(limits = c(-2, 2),
                      breaks = unique(q12$score),
                      labels = unique(q12$response)) +
-  theme(plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 90,
-                                   hjust = 1,
-                                   vjust = 0.5,
-                                   size = 10)) +
-  guides(fill = "none", 
-         color = "none") +
-  annotate("text",
-           x = Inf,
-           y = Inf,
-           label = paste0("n = ",
-                          length(unique(q12$respondent_id[!is.na(q12$response)]))),
-           vjust = 1,
-           hjust = 1,
-           size = 2.5) +
+  
+  # Professional diverging neutrality gradient (Red = Negative, Blue = Positive)
+  scale_fill_gradient2(low = "#b2182b", mid = "#f7f7f7", high = "#2166ac", midpoint = 0) +
+  scale_color_gradient2(low = "#67001f", mid = "gray70", high = "#053061", midpoint = 0) +
+  guides(fill = "none", color = "none") +
+  
   labs(x = "",
-       y = "")
+       y = "",
+       subtitle = paste0("n = ", length(unique(q12$respondent_id[!is.na(q12$response)])))) +
+  
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.subtitle = element_text(hjust = 1, size = 10, color = "gray30"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10))
+
+# Display the plot object
 pl12
+
+# 4. Save output
 ggsave("./Output/q12_pci.png",
        dpi = 300,
-       width = 30,
-       height = 20,
-       units = c("cm"))
+       width = 16,
+       height = 14,
+       units = "cm")
 ```
 
 # Question 13: For the study species your are willing to share data about, at what temporal resolution are you willing to share your data?
 
 ```{r}
+# 1. Read and process data
 q13 <- read_delim("./Interim/question13.csv", 
                   delim = ";", 
                   escape_double = FALSE, 
@@ -440,6 +637,7 @@ q13 <- read_delim("./Interim/question13.csv",
   mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
   filter(!is.na(score))
 
+# 2. Calculate PCI and apply your custom chronological sorting sequence
 q13_pci <- q13 %>%
   group_by(charachteristic) %>%
   summarise(meanAnswer = mean(score), 
@@ -447,60 +645,58 @@ q13_pci <- q13 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
   left_join(labels, by = c("charachteristic" = "label_underscore")) %>%
   mutate(ord = case_when(str_detect(label, "Exact") ~ 1,
                          str_detect(label, "Daily") ~ 2,
                          str_detect(label, "Weekly") ~ 3,
                          str_detect(label, "Monthly") ~ 4,
-                         str_detect(label, "Annual") ~ 5),
-         label = fct_reorder(label, ord))
+                         str_detect(label, "Annual") ~ 5)) %>%
+  # Arranging ensures y-axis breaks and text labels line up perfectly
+  arrange(ord) 
 
+# 3. Generate the plot
 pl13 <- q13_pci %>%
-  ggplot(aes(fill = label,
-             colour = label)) + 
-  geom_vline(xintercept = 0,
-             linetype = 2) +
-  geom_circle(aes(y0 = ord,
-                  x0 = meanAnswer,
-                  r = pci2),
-              alpha = 0.75) +
+  ggplot(aes(y0 = ord, x0 = meanAnswer, r = pci2, 
+             fill = meanAnswer, color = meanAnswer)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_circle(alpha = 0.7) +
+  
   coord_fixed() +
-  scale_y_continuous(breaks = unique(q13_pci$ord),
-                     labels = unique(q13_pci$label),
-                     limits = c(0.9, 5.5)) +
-  scale_x_continuous(limits = c(-2,2),
+  scale_y_continuous(breaks = q13_pci$ord, labels = q13_pci$label, limits = c(0.8, 5.5)) +
+  scale_x_continuous(limits = c(-2, 2),
                      breaks = unique(q13$score),
                      labels = unique(q13$response)) +
-  theme(plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 90,
-                                   hjust = 1,
-                                   vjust = 0.5,
-                                   size = 10)) +
-  guides(fill = "none", 
-         color = "none") +
-  annotate("text",
-           x = Inf,
-           y = Inf,
-           label = paste0("n = ",
-                          length(unique(q13$respondent_id[!is.na(q13$response)]))),
-           vjust = 1,
-           hjust = 1,
-           size = 2.5) +
+  
+  # Professional diverging neutrality gradient (Red = Negative, Blue = Positive)
+  scale_fill_gradient2(low = "#b2182b", mid = "#f7f7f7", high = "#2166ac", midpoint = 0) +
+  scale_color_gradient2(low = "#67001f", mid = "gray70", high = "#053061", midpoint = 0) +
+  guides(fill = "none", color = "none") +
+  
   labs(x = "",
-       y = "")
+       y = "Frequency / Horizon",
+       subtitle = paste0("n = ", length(unique(q13$respondent_id[!is.na(q13$response)])))) +
+  
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.subtitle = element_text(hjust = 1, size = 10, color = "gray30"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10))
+
+# Display the plot object
 pl13
+
+# 4. Save output
 ggsave("./Output/q13_pci.png",
        dpi = 300,
-       width = 30,
-       height = 20,
-       units = c("cm"))
+       width = 16,
+       height = 12,
+       units = "cm")
 ```
 
 # Question 14: For the study species your are willing to share data about, at what frequency are you willing to share your data?
 
 ```{r}
+# 1. Read and process data
 q14 <- read_delim("./Interim/question14.csv", 
                   delim = ";", 
                   escape_double = FALSE, 
@@ -508,6 +704,7 @@ q14 <- read_delim("./Interim/question14.csv",
   mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
   filter(!is.na(score))
 
+# 2. Calculate PCI and sort by Mean Score for a diagonal flow
 q14_pci <- q14 %>%
   group_by(charachteristic) %>%
   summarise(meanAnswer = mean(score), 
@@ -515,60 +712,63 @@ q14_pci <- q14 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
-  left_join(labels, by = c("charachteristic" = "label_underscore"))
+  left_join(labels, by = c("charachteristic" = "label_underscore")) %>%
+  arrange(meanAnswer) %>%
+  mutate(y = row_number())
 
+q14_pci <- q14_pci %>% mutate(label = str_wrap(label, width = 30))
+
+# 3. Generate the plot
 pl14 <- q14_pci %>%
-  ggplot(aes(fill = label,
-             colour = label)) + 
-  geom_vline(xintercept = 0,
-             linetype = 2) +
-  geom_circle(aes(y0 = y,
-                  x0 = meanAnswer,
-                  r = pci2),
-              alpha = 0.75) +
+  ggplot(aes(y0 = y, x0 = meanAnswer, r = pci2, 
+             fill = meanAnswer, color = meanAnswer)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_circle(alpha = 0.7) +
+  
   coord_fixed() +
-  scale_y_continuous(breaks = unique(q14_pci$y),
-                     labels = unique(q14_pci$label)) +
-  scale_x_continuous(limits = c(-2,2),
+  scale_y_continuous(breaks = q14_pci$y, labels = q14_pci$label) +
+  scale_x_continuous(limits = c(-2, 2),
                      breaks = unique(q14$score),
                      labels = unique(q14$response)) +
-  theme(plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 90,
-                                   hjust = 1,
-                                   vjust = 0.5,
-                                   size = 10)) +
-  guides(fill = "none", 
-         color = "none") +
-  annotate("text",
-           x = Inf,
-           y = Inf,
-           label = paste0("n = ",
-                          length(unique(q14$respondent_id[!is.na(q14$response)]))),
-           vjust = 1,
-           hjust = 1,
-           size = 2.5) +
+  
+  # Professional diverging neutrality gradient (Red = Negative, Blue = Positive)
+  scale_fill_gradient2(low = "#b2182b", mid = "#f7f7f7", high = "#2166ac", midpoint = 0) +
+  scale_color_gradient2(low = "#67001f", mid = "gray70", high = "#053061", midpoint = 0) +
+  guides(fill = "none", color = "none") +
+  
   labs(x = "",
-       y = "")
+       y = "",
+       subtitle = paste0("n = ", length(unique(q14$respondent_id[!is.na(q14$response)])))) +
+  
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.subtitle = element_text(hjust = 1, size = 10, color = "gray30"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10))
+
+# Display the plot object
 pl14
+
+# 4. Save output
 ggsave("./Output/q14_pci.png",
        dpi = 300,
-       width = 30,
-       height = 20,
-       units = c("cm"))
+       width = 16,
+       height = 14,
+       units = "cm")
 ```
 
 # Question 15: Would the following safeguards positively influence your willingness to share data, for the species mentioned in Q11 and Q12?
 
 ```{r}
+# 1. Read and process data
 q15 <- read_delim("./Interim/question15.csv", 
-                  delim = ";", 
-                  escape_double = FALSE, 
-                  trim_ws = TRUE) %>%
+                 delim = ";", 
+                 escape_double = FALSE, 
+                 trim_ws = TRUE) %>%
   mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
   filter(!is.na(score))
 
+# 2. Calculate PCI and sort by Mean Score for a diagonal flow
 q15_pci <- q15 %>%
   group_by(charachteristic) %>%
   summarise(meanAnswer = mean(score), 
@@ -576,115 +776,114 @@ q15_pci <- q15 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
-  left_join(labels, by = c("charachteristic" = "label_underscore"))
+  left_join(labels, by = c("charachteristic" = "label_underscore")) %>%
+  arrange(meanAnswer) %>%
+  mutate(y = row_number())
 
+
+q15_pci <- q15_pci %>% mutate(label = str_wrap(label, width = 30))
+
+# 3. Generate the plot
 q15_pci %>%
-  ggplot(aes(fill = label,
-             colour = label)) + 
-  geom_vline(xintercept = 0,
-             linetype = 2) +
-  geom_circle(aes(y0 = y,
-                  x0 = meanAnswer,
-                  r = pci2),
-              alpha = 0.75) +
+  ggplot(aes(y0 = y, x0 = meanAnswer, r = pci2, 
+             fill = meanAnswer, color = meanAnswer)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_circle(alpha = 0.7) +
+  
   coord_fixed() +
-  scale_y_continuous(breaks = unique(q15_pci$y),
-                     labels = unique(q15_pci$label)) +
-  scale_x_continuous(limits = c(-2,2),
+  scale_y_continuous(breaks = q15_pci$y, labels = q15_pci$label) +
+  scale_x_continuous(limits = c(-2, 2),
                      breaks = unique(q15$score),
                      labels = unique(q15$response)) +
-  theme(plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 90,
-                                   hjust = 1,
-                                   vjust = 0.5,
-                                   size = 10)) +
-  guides(fill = "none", 
-         color = "none") +
-  annotate("text",
-           x = Inf,
-           y = Inf,
-           label = paste0("n = ",
-                          length(unique(q15$respondent_id[!is.na(q15$response)]))),
-           vjust = 1,
-           hjust = 1,
-           size = 2.5) +
+  
+  # Professional diverging neutrality gradient (Red = Negative, Blue = Positive)
+  scale_fill_gradient2(low = "#b2182b", mid = "#f7f7f7", high = "#2166ac", midpoint = 0) +
+  scale_color_gradient2(low = "#67001f", mid = "gray70", high = "#053061", midpoint = 0) +
+  guides(fill = "none", color = "none") +
+  
   labs(x = "",
-       y = "")
+       y = "",
+       subtitle = paste0("n = ", length(unique(q15$respondent_id[!is.na(q15$response)])))) +
+  
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.subtitle = element_text(hjust = 1, size = 10, color = "gray30"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10))
+
+# 4. Save output
 ggsave("./Output/q15_pci.png",
        dpi = 300,
-       width = 30,
-       height = 20,
-       units = c("cm"))
+       width = 16,
+       height = 14,
+       units = "cm")
 ```
 
 # Question 16: How willing are you to share data for the following purposes?
 
 ```{r}
+# 1. Read and process data
 q16 <- read_delim("./Interim/question16.csv", 
-                  delim = ";", 
-                  escape_double = FALSE, 
-                  trim_ws = TRUE) %>%
+                 delim = ";", 
+                 escape_double = FALSE, 
+                 trim_ws = TRUE) %>%
   mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
   filter(!is.na(score))
 
+# 2. Calculate PCI and sort by Mean Score for a diagonal flow
 q16_pci <- q16 %>%
   group_by(charachteristic) %>%
   summarise(meanAnswer = mean(score), 
             sdAnswer = sd(score),
             n = n(),
             pci2 = qd_pci2(score)) %>%
+  mutate(pci2 = ifelse(pci2 == 0, 0.01, pci2)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
-  left_join(labels, by = c("charachteristic" = "label_underscore"))
+  left_join(labels, by = c("charachteristic" = "label_underscore")) %>%
+  arrange(meanAnswer) %>%
+  mutate(y = row_number())
 
+# 3. Generate the plot
 q16_pci %>%
-  ggplot(aes(fill = label,
-             colour = label)) + 
-  geom_vline(xintercept = 0,
-             linetype = 2) +
-  geom_point(aes(y = y,
-                 x = meanAnswer),
-             alpha = 0.5) +
-  geom_circle(aes(y0 = y,
-                  x0 = meanAnswer,
-                  r = pci2),
-              alpha = 0.75) +
+  ggplot(aes(y0 = y, x0 = meanAnswer, r = pci2, 
+             fill = meanAnswer, color = meanAnswer)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  #geom_point(aes(y = y, x = meanAnswer), alpha = 0.5) +
+  geom_circle(alpha = 0.7) +
+  
   coord_fixed() +
-  scale_y_continuous(breaks = unique(q16_pci$y),
-                     labels = unique(q16_pci$label)) +
-  scale_x_continuous(limits = c(-2,2),
+  scale_y_continuous(breaks = q16_pci$y, labels = q16_pci$label) +
+  scale_x_continuous(limits = c(-2, 2),
                      breaks = unique(q16$score),
                      labels = unique(q16$response)) +
-  theme(plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 90,
-                                   hjust = 1,
-                                   vjust = 0.5,
-                                   size = 10)) +
-  guides(fill = "none", 
-         color = "none") +
-  annotate("text",
-           x = Inf,
-           y = Inf,
-           label = paste0("n = ",
-                          length(unique(q16$respondent_id[!is.na(q16$response)]))),
-           vjust = 1,
-           hjust = 1,
-           size = 2.5) +
+  
+  # Professional diverging neutrality gradient (Red = Negative, Blue = Positive)
+  scale_fill_gradient2(low = "#b2182b", mid = "#f7f7f7", high = "#2166ac", midpoint = 0) +
+  scale_color_gradient2(low = "#67001f", mid = "gray70", high = "#053061", midpoint = 0) +
+  guides(fill = "none", color = "none") +
+  
   labs(x = "",
-       y = "")
+       y = "",
+       subtitle = paste0("n = ", length(unique(q16$respondent_id[!is.na(q16$response)])))) +
+  
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.subtitle = element_text(hjust = 1, size = 10, color = "gray30"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10))
+
+# 4. Save output
 ggsave("./Output/q16_pci.png",
        dpi = 300,
-       width = 30,
-       height = 20,
-       units = c("cm"))
+       width = 16,
+       height = 16,
+       units = "cm")
 ```
 
 # Question 17: How much of an issue do you consider the following obstacles to be in regards to sharing your camera trap data?
 
 ```{r}
+# 1. Read and process data
 q17 <- read_delim("./Interim/question17.csv", 
                   delim = ";", 
                   escape_double = FALSE, 
@@ -692,6 +891,7 @@ q17 <- read_delim("./Interim/question17.csv",
   mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
   filter(!is.na(score))
 
+# 2. Calculate PCI and sort by Mean Score for a diagonal flow
 q17_pci <- q17 %>%
   group_by(charachteristic) %>%
   summarise(meanAnswer = mean(score), 
@@ -699,52 +899,53 @@ q17_pci <- q17 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
-  left_join(labels, by = c("charachteristic" = "label_underscore"))
+  left_join(labels, by = c("charachteristic" = "label_underscore")) %>%
+  arrange(meanAnswer) %>%
+  mutate(y = row_number())
 
+q17_pci <- q17_pci %>% mutate(label = str_wrap(label, width = 30))
+
+# 3. Generate the plot
 q17_pci %>%
-  ggplot(aes(fill = label,
-             colour = label)) + 
-  geom_vline(xintercept = 0,
-             linetype = 2) +
-  geom_circle(aes(y0 = y,
-                  x0 = meanAnswer,
-                  r = pci2),
-              alpha = 0.75) +
+  ggplot(aes(y0 = y, x0 = meanAnswer, r = pci2, 
+             fill = meanAnswer, color = meanAnswer)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_circle(alpha = 0.7) +
+  
   coord_fixed() +
-  scale_y_continuous(breaks = unique(q17_pci$y),
-                     labels = unique(q17_pci$label)) +
-  scale_x_continuous(limits = c(-2,2),
-                     trans = "reverse",
+  scale_y_continuous(breaks = q17_pci$y, labels = q17_pci$label) +
+  scale_x_continuous(limits = c(-2, 2),
+                     trans = "reverse", # Preserved your reversed axis transformation
                      breaks = unique(q17$score),
                      labels = unique(q17$response)) +
-  theme(plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 90,
-                                   hjust = 1,
-                                   vjust = 0.5)) +
-  guides(fill = "none", 
-         color = "none") +
-  annotate("text",
-           x = -Inf,
-           y = Inf,
-           label = paste0("n = ",
-                          length(unique(q17$respondent_id[!is.na(q17$response)]))),
-           vjust = 1,
-           hjust = 1,
-           size = 2.5) +
+  
+  # Professional diverging neutrality gradient (Red = Negative, Blue = Positive)
+  scale_fill_gradient2(low = "#b2182b", mid = "#f7f7f7", high = "#2166ac", midpoint = 0) +
+  scale_color_gradient2(low = "#67001f", mid = "gray70", high = "#053061", midpoint = 0) +
+  guides(fill = "none", color = "none") +
+  
   labs(x = "",
-       y = "")
+       y = "",
+       subtitle = paste0("n = ", length(unique(q17$respondent_id[!is.na(q17$response)])))) +
+  
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.subtitle = element_text(hjust = 1, size = 10, color = "gray30"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10))
+
+# 4. Save output
 ggsave("./Output/q17_pci.png",
        dpi = 300,
-       width = 30,
-       height = 20,
-       units = c("cm"))
+       width = 16,
+       height = 16,
+       units = "cm")
 ```
 
 # Question 18: What geographical resolution of camera trap data would you like to be shared with you?
 
 ```{r}
+# 1. Read and process data
 q18 <- read_delim("./Interim/question18.csv", 
                   delim = ";", 
                   escape_double = FALSE, 
@@ -752,6 +953,7 @@ q18 <- read_delim("./Interim/question18.csv",
   mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
   filter(!is.na(score))
 
+# 2. Calculate PCI and sort by Mean Score for a diagonal flow
 q18_pci <- q18 %>%
   group_by(charachteristic) %>%
   summarise(meanAnswer = mean(score), 
@@ -759,55 +961,62 @@ q18_pci <- q18 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
-  mutate(charachteristic = fct_reorder(charachteristic, y)) %>%
-  left_join(labels, by = c("charachteristic" = "label_underscore"))
+  left_join(labels, by = c("charachteristic" = "label_underscore")) %>%
+    mutate(ord = case_when(str_detect(label, "National") ~ 7,
+                         str_detect(label, "Regional") ~ 6,
+                         str_detect(label, "Municipality") ~ 5,
+                         str_detect(label, "Study") ~ 4,
+                         str_detect(label, "Grid") ~ 3,
+                         str_detect(label, "Generalised") ~ 2,
+                         str_detect(label, "Exact") ~ 1
+                         )
+           ) %>%
+  # Arranging ensures y-axis breaks and text labels line up perfectly
+  arrange(ord)
 
+# 3. Generate the plot
 pl18 <- q18_pci %>%
-  ggplot(aes(fill = label,
-             colour = label)) + 
-  geom_vline(xintercept = 0,
-             linetype = 2) +
-  geom_circle(aes(y0 = y,
-                  x0 = meanAnswer,
-                  r = pci2),
-              alpha = 0.75) +
+  ggplot(aes(y0 = ord, x0 = meanAnswer, r = pci2, 
+             fill = meanAnswer, color = meanAnswer)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_circle(alpha = 0.7) +
+  
   coord_fixed() +
-  scale_y_continuous(breaks = unique(q18_pci$y),
-                     labels = unique(q18_pci$label),
-                     limits = c(0.8, 7.5)) +
-  scale_x_continuous(limits = c(-2,2),
+  scale_y_continuous(breaks = q18_pci$ord, labels = q18_pci$label) +
+  scale_x_continuous(limits = c(-2, 2),
                      breaks = unique(q18$score),
                      labels = unique(q18$response)) +
-  theme(plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 90,
-                                   hjust = 1,
-                                   vjust = 0.5,
-                                   size = 10)) +
-  guides(fill = "none", 
-         color = "none") +
-  annotate("text",
-           x = Inf,
-           y = Inf,
-           label = paste0("n = ",
-                          length(unique(q18$respondent_id[!is.na(q18$response)]))),
-           vjust = 1,
-           hjust = 1,
-           size = 2.5) +
+  
+  # Professional diverging neutrality gradient (Red = Negative, Blue = Positive)
+  scale_fill_gradient2(low = "#b2182b", mid = "#f7f7f7", high = "#2166ac", midpoint = 0) +
+  scale_color_gradient2(low = "#67001f", mid = "gray70", high = "#053061", midpoint = 0) +
+  guides(fill = "none", color = "none") +
+  
   labs(x = "",
-       y = "")
+       y = "",
+       subtitle = paste0("n = ", length(unique(q18$respondent_id[!is.na(q18$response)])))) +
+  
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.subtitle = element_text(hjust = 1, size = 10, color = "gray30"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10))
+
+# Display the plot object
 pl18
+
+# 4. Save output
 ggsave("./Output/q18_pci.png",
        dpi = 300,
-       width = 30,
-       height = 20,
-       units = c("cm"))
+       width = 16,
+       height = 16,
+       units = "cm")
 ```
 
 # Question 19: What temporal resolution of camera trap data would you like to be shared with you?
 
 ```{r}
+# 1. Read and process data
 q19 <- read_delim("./Interim/question19.csv", 
                   delim = ";", 
                   escape_double = FALSE, 
@@ -815,98 +1024,95 @@ q19 <- read_delim("./Interim/question19.csv",
   mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
   filter(!is.na(score))
 
+# 2. Calculate PCI and apply your custom chronological sorting sequence
 q19_pci <- q19 %>%
   group_by(charachteristic) %>%
   summarise(meanAnswer = mean(score), 
             sdAnswer = sd(score),
             n = n(),
             pci2 = qd_pci2(score)) %>%
+  mutate(pci2 = ifelse(pci2 == 0, 0.01, pci2)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
   left_join(labels, by = c("charachteristic" = "label_underscore")) %>%
-  mutate(ord = case_when(str_detect(label, "Exact") ~ 1,
-                         str_detect(label, "Daily") ~ 2,
-                         str_detect(label, "Weekly") ~ 3,
-                         str_detect(label, "Monthly") ~ 4,
-                         str_detect(label, "Yearly") ~ 5),
-         label = fct_reorder(label, ord))
+  mutate(
+    label = str_replace(label, "Yearly", "Annual"),
+    ord = case_when(str_detect(label, "Exact") ~ 1,
+                    str_detect(label, "Daily") ~ 2,
+                    str_detect(label, "Weekly") ~ 3,
+                    str_detect(label, "Monthly") ~ 4,
+                    str_detect(label, "Annual") ~ 5)) %>%
+  # Arranging ensures y-axis breaks and text labels line up perfectly
+  arrange(ord) 
 
+# 3. Generate the plot
 pl19 <- q19_pci %>%
-  ggplot(aes(fill = label,
-             colour = label)) + 
-  geom_vline(xintercept = 0,
-             linetype = 2) +
-  geom_point(aes(y = ord,
-                 x = meanAnswer),
-             alpha = 0.5) +
-  geom_circle(aes(y0 = ord,
-                  x0 = meanAnswer,
-                  r = pci2),
-              alpha = 0.75) +
+  ggplot(aes(y0 = ord, x0 = meanAnswer, r = pci2, 
+             fill = meanAnswer, color = meanAnswer)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_circle(alpha = 0.7) +
+  
   coord_fixed() +
-  scale_y_continuous(breaks = unique(q19_pci$ord),
-                     labels = unique(q19_pci$label),
-                     limits = c(0.9, 5.5)) +
-  scale_x_continuous(limits = c(-2,2),
+  scale_y_continuous(breaks = q19_pci$ord, labels = q19_pci$label, limits = c(0.8, 5.5)) +
+  scale_x_continuous(limits = c(-2, 2),
                      breaks = unique(q19$score),
                      labels = unique(q19$response)) +
-  theme(plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 90,
-                                   hjust = 1,
-                                   vjust = 0.5,
-                                   size = 10)) +
-  guides(fill = "none", 
-         color = "none") +
-  annotate("text",
-           x = Inf,
-           y = Inf,
-           label = paste0("n = ",
-                          length(unique(q19$respondent_id[!is.na(q19$response)]))),
-           vjust = 1,
-           hjust = 1,
-           size = 2.5) +
+  
+  # Professional diverging neutrality gradient (Red = Negative, Blue = Positive)
+  scale_fill_gradient2(low = "#b2182b", mid = "#f7f7f7", high = "#2166ac", midpoint = 0) +
+  scale_color_gradient2(low = "#67001f", mid = "gray70", high = "#053061", midpoint = 0) +
+  guides(fill = "none", color = "none") +
+  
   labs(x = "",
-       y = "")
+       y = "",
+       subtitle = paste0("n = ", length(unique(q19$respondent_id[!is.na(q19$response)])))) +
+  
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.subtitle = element_text(hjust = 1, size = 10, color = "gray30"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10))
+
+# Display the plot object
 pl19
+
+# 4. Save output
 ggsave("./Output/q19_pci.png",
        dpi = 300,
-       width = 30,
-       height = 20,
-       units = c("cm"))
+       width = 16,
+       height = 12,
+       units = "cm")
 ```
 
 # Q13-19 together
 
 ```{r}
-pl13
-pl19
-pl13 + (pl19 +
-          theme(axis.text.y = element_blank()))
+(pl13 + labs(title = "Share data", y = "")) + 
+(pl19 + labs(title = "Receive data", y = "") + theme(axis.text.y = element_blank())) & 
+  theme(plot.title = element_text(hjust = 0.5))
 ggsave("./Output/q1319.png",
        dpi = 300,
-       width = 30,
-       height = 20,
+       width = 16,
+       height = 12,
        units = c("cm"))
 ```
 
 # Q12-18 together
 
 ```{r}
-pl12
-pl18
-pl12 + (pl18 +
-          theme(axis.text.y = element_blank()))
+(pl12 + labs(title = "Share data", y = "")) + 
+(pl18 + labs(title = "Receive data", y = "") + theme(axis.text.y = element_blank())) & 
+  theme(plot.title = element_text(hjust = 0.5))
 ggsave("./Output/q1218.png",
        dpi = 300,
-       width = 30,
-       height = 20,
+       width = 16,
+       height = 14,
        units = c("cm"))
 ```
 
 # Question 20: How valuable do you think data from unstructured citizen science initiatives/projects (e.g. garden projects, opportunistic camera trapping) are for the following purposes?
 
 ```{r}
+# 1. Read and process data
 q20 <- read_delim("./Interim/question20.csv", 
                   delim = ";", 
                   escape_double = FALSE, 
@@ -914,6 +1120,7 @@ q20 <- read_delim("./Interim/question20.csv",
   mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
   filter(!is.na(score))
 
+# 2. Calculate PCI and sort by Mean Score for a diagonal flow
 q20_pci <- q20 %>%
   group_by(charachteristic) %>%
   summarise(meanAnswer = mean(score), 
@@ -921,57 +1128,55 @@ q20_pci <- q20 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1)) %>%
-  left_join(labels, by = c("charachteristic" = "label_underscore"))
+  left_join(labels, by = c("charachteristic" = "label_underscore")) %>%
+  arrange(meanAnswer) %>%
+  mutate(y = row_number())
 
+q20_pci <- q20_pci %>% mutate(label = str_wrap(label, width = 30))
+
+# 3. Generate the plot
 pl20 <- q20_pci %>%
-  ggplot(aes(fill = label,
-             colour = label)) + 
-  geom_vline(xintercept = 0,
-             linetype = 2) +
-  geom_point(aes(y = y,
-                 x = meanAnswer),
-             alpha = 0.5) +
-  geom_circle(aes(y0 = y,
-                  x0 = meanAnswer,
-                  r = pci2),
-              alpha = 0.75) +
+  ggplot(aes(y0 = y, x0 = meanAnswer, r = pci2, 
+             fill = meanAnswer, color = meanAnswer)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_circle(alpha = 0.7) +
+  
   coord_fixed() +
-  scale_y_continuous(breaks = unique(q20_pci$y),
-                     labels = unique(q20_pci$label),
-                     limits = c(0.5, 7.5)) +
-  scale_x_continuous(limits = c(-2,2),
+  scale_y_continuous(breaks = q20_pci$y, labels = q20_pci$label) +
+  scale_x_continuous(limits = c(-2, 2),
                      breaks = unique(q20$score),
                      labels = unique(q20$response)) +
-  theme(plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 90,
-                                   hjust = 1,
-                                   vjust = 0.5,
-                                   size = 10)) +
-  guides(fill = "none", 
-         color = "none") +
-  annotate("text",
-           x = Inf,
-           y = Inf,
-           label = paste0("n = ",
-                          length(unique(q20$respondent_id[!is.na(q20$response)]))),
-           vjust = 1,
-           hjust = 1,
-           size = 2.5) +
+  
+  # Professional diverging neutrality gradient (Red = Negative, Blue = Positive)
+  scale_fill_gradient2(low = "#b2182b", mid = "#f7f7f7", high = "#2166ac", midpoint = 0) +
+  scale_color_gradient2(low = "#67001f", mid = "gray70", high = "#053061", midpoint = 0) +
+  guides(fill = "none", color = "none") +
+  
   labs(x = "",
-       y = "")
+       y = "",
+       subtitle = paste0("n = ", length(unique(q20$respondent_id[!is.na(q20$response)])))) +
+  
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.subtitle = element_text(hjust = 1, size = 10, color = "gray30"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10))
+
+# Display the plot object
 pl20
+
+# 4. Save output
 ggsave("./Output/q20_pci.png",
        dpi = 300,
-       width = 30,
+       width = 16,
        height = 20,
-       units = c("cm"))
+       units = "cm")
 ```
 
 # Question 21: How valuable do you think data from structured citizen science (e.g. targeted camera trapping, hunter-owned camera traps) are for the following purposes?
 
 ```{r}
+# 1. Read and process data
 q21 <- read_delim("./Interim/question21.csv", 
                   delim = ";", 
                   escape_double = FALSE, 
@@ -979,6 +1184,7 @@ q21 <- read_delim("./Interim/question21.csv",
   mutate(score = as.integer(sub(".*\\((.*?)\\).*", "\\1", response))) %>%
   filter(!is.na(score))
 
+# 2. Calculate PCI and sort by Mean Score for a diagonal flow
 q21_pci <- q21 %>%
   group_by(charachteristic) %>%
   summarise(meanAnswer = mean(score), 
@@ -986,62 +1192,61 @@ q21_pci <- q21 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(charachteristic)), by = 1))  %>%
-  left_join(labels, by = c("charachteristic" = "label_underscore"))
+  left_join(labels, by = c("charachteristic" = "label_underscore")) %>%
+  arrange(meanAnswer) %>%
+  mutate(y = row_number())
 
+q21_pci <- q21_pci %>% mutate(label = str_wrap(label, width = 30))
+
+# 3. Generate the plot
 pl21 <- q21_pci %>%
-  ggplot(aes(fill = label,
-             colour = label)) + 
-  geom_vline(xintercept = 0,
-             linetype = 2) +
-  geom_circle(aes(y0 = y,
-                  x0 = meanAnswer,
-                  r = pci2),
-              alpha = 0.75) +
+  ggplot(aes(y0 = y, x0 = meanAnswer, r = pci2, 
+             fill = meanAnswer, color = meanAnswer)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_circle(alpha = 0.7) +
+  
   coord_fixed() +
-  scale_y_continuous(breaks = unique(q21_pci$y),
-                     labels = unique(q21_pci$label),
-                     limits = c(0.5, 7.5)) +
-  scale_x_continuous(limits = c(-2,2),
+  scale_y_continuous(breaks = q21_pci$y, labels = q21_pci$label) +
+  scale_x_continuous(limits = c(-2, 2),
                      breaks = unique(q21$score),
                      labels = unique(q21$response)) +
-  theme(plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 90,
-                                   hjust = 1,
-                                   vjust = 0.5,
-                                   size = 10)) +
-  guides(fill = "none", 
-         color = "none") +
-  annotate("text",
-           x = Inf,
-           y = Inf,
-           label = paste0("n = ",
-                          length(unique(q21$respondent_id[!is.na(q21$response)]))),
-           vjust = 1,
-           hjust = 1,
-           size = 2.5) +
+  
+  # Professional diverging neutrality gradient (Red = Negative, Blue = Positive)
+  scale_fill_gradient2(low = "#b2182b", mid = "#f7f7f7", high = "#2166ac", midpoint = 0) +
+  scale_color_gradient2(low = "#67001f", mid = "gray70", high = "#053061", midpoint = 0) +
+  guides(fill = "none", color = "none") +
+  
   labs(x = "",
-       y = "")
+       y = "",
+       subtitle = paste0("n = ", length(unique(q21$respondent_id[!is.na(q21$response)])))) +
+  
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.subtitle = element_text(hjust = 1, size = 10, color = "gray30"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10))
+
+# Display the plot object
 pl21
+
+# 4. Save output
 ggsave("./Output/q21_pci.png",
        dpi = 300,
-       width = 30,
+       width = 16,
        height = 20,
-       units = c("cm"))
+       units = "cm")
 ```
 
 # Q20-21 together
 
 ```{r}
-pl20
-pl21
-pl20 + (pl21 +
-          theme(axis.text.y = element_blank()))
+(pl20 + labs(title = "Unstructured data", y = "")) + 
+(pl21 + labs(title = "Structured data", y = "") + theme(axis.text.y = element_blank())) & 
+  theme(plot.title = element_text(hjust = 0.5))
 ggsave("./Output/q2021.png",
        dpi = 300,
-       width = 30,
-       height = 20,
+       width = 16,
+       height = 12,
        units = c("cm"))
 ```
 
@@ -1049,6 +1254,7 @@ ggsave("./Output/q2021.png",
 # Question 22 + 23
 
 ```{r}
+# 1. Read and combine data
 q22 <- read_delim("Interim/question22.csv", 
                   delim = ";",
                   escape_double = FALSE,
@@ -1068,6 +1274,7 @@ q23 <- read_delim("Interim/question23.csv",
 q223 <- bind_rows(q22, q23)
 remove(q22, q23)
 
+# 2. Calculate PCI and sort by Mean Score for a diagonal flow
 q223_pci <- q223 %>%
   group_by(question) %>%
   summarise(meanAnswer = mean(score), 
@@ -1075,45 +1282,44 @@ q223_pci <- q223 %>%
             n = n(),
             pci2 = qd_pci2(score)) %>%
   ungroup() %>%
-  mutate(y = seq(1, length(unique(question)), by = 1))
+  arrange(meanAnswer) %>%
+  mutate(y = row_number())
 
+q223_pci <- q223_pci %>% mutate(question = str_wrap(question, width = 30))
+
+# 3. Generate the plot
 q223_pci %>%
-  ggplot(aes(fill = question,
-             colour = question)) + 
-  geom_vline(xintercept = 0,
-             linetype = 2) +
-  geom_circle(aes(y0 = y,
-                  x0 = meanAnswer,
-                  r = pci2),
-              alpha = 0.75) +
+  ggplot(aes(y0 = y, x0 = meanAnswer, r = pci2, 
+             fill = meanAnswer, color = meanAnswer)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_circle(alpha = 0.7) +
+  
   coord_fixed() +
-  scale_y_continuous(breaks = unique(q223_pci$y),
-                     labels = unique(q223_pci$question)) +
-  scale_x_continuous(limits = c(-2,2),
+  scale_y_continuous(breaks = q223_pci$y, labels = q223_pci$question) +
+  scale_x_continuous(limits = c(-2, 2),
                      breaks = unique(q223$score),
                      labels = unique(q223$response)) +
-  theme(plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 90,
-                                   hjust = 1,
-                                   vjust = 0.5,
-                                   size = 10)) +
-  guides(fill = "none", 
-         color = "none") +
-  annotate("text",
-           x = Inf,
-           y = Inf,
-           label = paste0("n = ",
-                          length(unique(q223$respondent_id[!is.na(q223$score)]))),
-           vjust = 1,
-           hjust = 1,
-           size = 2.5) +
+  
+  # Professional diverging neutrality gradient (Red = Negative, Blue = Positive)
+  scale_fill_gradient2(low = "#b2182b", mid = "#f7f7f7", high = "#2166ac", midpoint = 0) +
+  scale_color_gradient2(low = "#67001f", mid = "gray70", high = "#053061", midpoint = 0) +
+  guides(fill = "none", color = "none") +
+  
   labs(x = "",
-       y = "")
+       y = "",
+       subtitle = paste0("n = ", length(unique(q223$respondent_id[!is.na(q223$score)])))) +
+  
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.subtitle = element_text(hjust = 1, size = 10, color = "gray30"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10))
+
+# 4. Save output
 ggsave("./Output/q223_pci.png",
        dpi = 300,
-       width = 30,
-       height = 20,
-       units = c("cm"))
+       width = 16,
+       height = 8,
+       units = "cm")
 ```
 
