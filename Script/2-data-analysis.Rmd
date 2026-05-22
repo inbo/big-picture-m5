@@ -94,7 +94,6 @@ region_colors <- setNames(brewer.pal(7, "Dark2"), all_regions)
 # 2. Clean survey country names and join regional metadata
 q1_grouped <- q1 %>%
   mutate(response = case_when(
-    response == "Czechia" ~ "Czech Republic",
     response == "United States, Peru" ~ "United States of America, Peru", 
     TRUE ~ response
   )) %>%
@@ -129,7 +128,7 @@ q1_summary %>%
   labs(x = "Number of responses", 
        y = "Region/ country of activity",
        subtitle = paste0("n = ", length(unique(q1$respondent_id)), 
-                         " | m = ", nrow(q1))) +
+                         " | m = ", nrow(q1_grouped))) +
   scale_x_continuous(limits = c(0, 100)) + 
   scale_fill_manual(values = region_colors) +
   scale_color_manual(values = region_colors) +
@@ -192,7 +191,6 @@ ggsave("./Output/q2.png",
 # 2. Clean survey country names and join regional metadata
 q2_grouped <- q2 %>%
   mutate(response = case_when(
-    response == "Czechia" ~ "Czech Republic",
     response == "United States" ~ "United States of America",
     TRUE ~ response
   )) %>%
